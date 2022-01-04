@@ -147,6 +147,12 @@ for each of the auth types currently supported.\n"""
         help="Update the bundled output into a valid transaction bundle."
     )
     parser.add_argument(
+        "-x",
+        "--bundle-only",
+        action='store_true',
+        help="Bundles do require an environment, but with this set, nothing will be submitted to the actual fhir server (sets the 'save-bundle' flag)"
+    )
+    parser.add_argument(
         "-i",
         "--intermediate",
         default='output/whistle-input',
@@ -171,6 +177,9 @@ for each of the auth types currently supported.\n"""
         help="Dataset YAML file with details required to run conversion.",
     )
     args = parser.parse_args(sys.argv[1:])
+
+    if args.bundle_only:
+        args.save_bundle = True
 
     for config_file in args.config:
         config = safe_load(config_file)
@@ -219,14 +228,14 @@ for each of the auth types currently supported.\n"""
             # if we are loading, we'll grab the loader so that we can 
             if args.validate_only:
                 resource_consumers.append(loader.consume_validate)
-            else:
+            elif not args.bundle_only:
                 resource_consumers.append(loader.consume_load)
 
             transaction_bundle = None
             if args.save_bundle:
                 bundle_filename = output_directory / f"{Path(result_file).stem}-transaction.json"
                 request_type = RequestType.PUT
-                if args.validate_only:
+                if args.validate_only or args.bundle_only:
                     request_type = RequestType.POST
                 transaction_bundle = Bundle(bundle_filename, f"{config['study_id']}-bundle", fhir_client.target_service_url, request_type=request_type)
                 resource_consumers.append(transaction_bundle.consume_resource)
@@ -239,3 +248,5 @@ for each of the auth types currently supported.\n"""
                     print(f"Attempting to load {len(loader.delayed_loading)} left-overs. ")
                     loader.retry_loading()
 
+            if args.save_bundle:
+                transaction_bundle.close_bundle()

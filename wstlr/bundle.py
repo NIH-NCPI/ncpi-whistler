@@ -100,7 +100,7 @@ class Bundle:
     def close_bundle(self):
         if self.bundle:
             self.bundle.write("""
-    ]
+  ]
 }""")
             self.bundle.close()        
 
