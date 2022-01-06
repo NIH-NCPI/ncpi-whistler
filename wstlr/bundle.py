@@ -48,25 +48,62 @@ class RequestType(Enum):
 
 class Bundle:
     """Update the bundle created by whistle to be a valid transaction bundle"""
-    def __init__(self, filename, bundle_id, target_service_url, request_type=RequestType.PUT):
-        self.filename = filename
+    def __init__(self, file_prefix, bundle_id, target_service_url, request_type=RequestType.PUT):
+        self.file_prefix = file_prefix
+        self.filename = None
         self.write_comma = False
-        self.bundle = open(self.filename, 'wt')
+        self.bundle_id = bundle_id
+        self.cur_group = None
+        self.bundle = None
+        self.bundle_size = 0
         self.request_type = request_type
         self.target_service_url = target_service_url
         self.verb = "PUT"
+        self.max_records = 15000
+        self.file_index = 0
+        self.records_written = 0
+        self.urls_seen = set()
         if request_type == RequestType.POST:
             self.verb="POST"
+
+    def init_bundle(self, group):
+        if self.bundle is not None:
+            self.close_bundle()
+
+        self.file_index += 1
+        if group == 'entry':
+            self.filename = f"{self.file_prefix}-{self.file_index:05d}.json"
+        else:
+            self.filename = f"{self.file_prefix}-{group}-{self.file_index:05d}.json"
+
+        if self.cur_group != group:
+            self.bundle_size = 0
+            self.file_index = 0
+            self.max_records = 15000
+
+            # Cheap fix to get rid of duplicate entries while I finish testing 
+            # capabilities of transaction bundles
+            self.urls_seen = set()
+        self.records_written = 0
+        self.cur_group = group
+
+
+        self.bundle = open(self.filename, 'wt')
+
+        self.write_comma = False
         self.bundle.write("""{
     "resourceType": "Bundle",
-    "id": \"""" + bundle_id + """\",
+    "id": \"""" + self.bundle_id + """\",
     "type": "transaction",
     "entry": [
 """)
-
     def consume_resource(self, group, resource):
         response = deepcopy(resource)
+        
+        if group != self.cur_group or self.max_records <= self.records_written:
+            self.init_bundle(group)
         if self.bundle:
+
             # For now, let's just skip the ID so that it works in a more general sense
 
             if 'resourceType' not in resource or 'id' not in resource:
@@ -81,13 +118,21 @@ class Bundle:
                 destination = f"{resource['resourceType']}" 
                 id = resource['identifier'][0]['value']
                 
-            if self.write_comma: 
-                self.bundle.write(",")
-            self.write_comma = True
+
             #pdb.set_trace()
             resource_data = json.dumps(resource)
+
+            self.bundle_size += 1
+            self.records_written += 1
+            
             full_url = f"""{self.target_service_url}/{resource['resourceType']}/{id}"""
-            self.bundle.write("""    {
+
+            if full_url not in self.urls_seen:
+                if self.write_comma: 
+                    self.bundle.write(",")
+                self.write_comma = True
+                self.urls_seen.add(full_url)
+                self.bundle.write("""    {
       "fullUrl": \"""" + full_url + """\",
       "resource": """ + resource_data + """,
       "request": {
@@ -95,9 +140,12 @@ class Bundle:
           "url": \"""" + destination + """\"
       }
     }""")
+            else:
+                print(f"Skipping duplicate entry for {full_url}")
         return response
 
     def close_bundle(self):
+        print(f"Closing Bundle {self.filename} with {self.records_written} entries ({self.bundle_size} records so far).")
         if self.bundle:
             self.bundle.write("""
   ]

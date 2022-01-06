@@ -233,7 +233,7 @@ for each of the auth types currently supported.\n"""
 
             transaction_bundle = None
             if args.save_bundle:
-                bundle_filename = output_directory / f"{Path(result_file).stem}-transaction.json"
+                bundle_filename = output_directory / f"{Path(result_file).stem.replace('.output', '')}"
                 request_type = RequestType.PUT
                 if args.validate_only or args.bundle_only:
                     request_type = RequestType.POST
