@@ -43,32 +43,33 @@ class IdCache:
             check_same_thread=False)
 
     def prime_cache(self, target_system):
-        if target_system not in self.cache:
-            # Create table in DB first if necessary
-            self.db_cache.execute(
-                f"""CREATE TABLE IF NOT EXISTS "{FixTargetSystem(target_system)}"
-                        (unique_id TEXT PRIMARY KEY, 
-                        study_id TEXT NOT NULL, 
-                        entity_type TEXT NOT NULL,
-                        fhir_endpoint TEXT NOT NULL, 
-                        target_id TEXT NOT NULL)""")
+        with cache_lock:
+            if target_system not in self.cache:
+                # Create table in DB first if necessary
+                self.db_cache.execute(
+                    f"""CREATE TABLE IF NOT EXISTS "{FixTargetSystem(target_system)}"
+                            (unique_id TEXT PRIMARY KEY, 
+                            study_id TEXT NOT NULL, 
+                            entity_type TEXT NOT NULL,
+                            fhir_endpoint TEXT NOT NULL, 
+                            target_id TEXT NOT NULL)""")
 
-            # I'm currently on the fence about whether this is appropriate
-            # The read is a onetime only (per resourceType/run) whereas, 
-            # the write is very frequent for loads with new records. So, 
-            # the index will slow down writes to benefit a small number of 
-            # cases? 
-            # self.db_cache.execute(f"CREATE INDEX idx-{entity_type} ON {entity_type}(study_id, fhir_endpoint)")
+                # I'm currently on the fence about whether this is appropriate
+                # The read is a onetime only (per resourceType/run) whereas, 
+                # the write is very frequent for loads with new records. So, 
+                # the index will slow down writes to benefit a small number of 
+                # cases? 
+                # self.db_cache.execute(f"CREATE INDEX idx-{entity_type} ON {entity_type}(study_id, fhir_endpoint)")
 
-            # Populate RAM cache from DB
-            for unique_id, entity_type, target_id in self.db_cache.execute(
-                f"""SELECT 
-                        unique_id, 
-                        entity_type,
-                        target_id 
-                    FROM "{FixTargetSystem(target_system)}" 
-                    WHERE study_id=? AND fhir_endpoint=?""", (self.study_id, self.fhir_endpoint)):
-                self.cache[target_system][unique_id] = (entity_type, target_id)
+                # Populate RAM cache from DB
+                for unique_id, entity_type, target_id in self.db_cache.execute(
+                    f"""SELECT 
+                            unique_id, 
+                            entity_type,
+                            target_id 
+                        FROM "{FixTargetSystem(target_system)}" 
+                        WHERE study_id=? AND fhir_endpoint=?""", (self.study_id, self.fhir_endpoint)):
+                    self.cache[target_system][unique_id] = (entity_type, target_id)
 
     def get_id(self, target_system, entity_key):
         """
@@ -79,9 +80,8 @@ class IdCache:
         :param entity_key: source unique key for this entity
         :type entity_key: str
         """
-        with cache_lock:
-            self.prime_cache(target_system)
-            return self.cache[target_system].get(entity_key)
+        self.prime_cache(target_system)
+        return self.cache[target_system].get(entity_key)
 
     def store_id(
         self, entity_type, target_system, entity_key, target_id, no_db=False
@@ -99,8 +99,9 @@ class IdCache:
         :param no_db: only store in the RAM cache, not in the db
         :type no_db: bool
         """
+        self.prime_cache(target_system)
+
         with cache_lock:
-            self.prime_cache(target_system)
             if self.cache[target_system].get(entity_key) != (entity_type, target_id):
                 self.cache[target_system][entity_key] = (entity_type, target_id)
                 if not no_db:

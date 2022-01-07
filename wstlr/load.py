@@ -12,12 +12,17 @@ from collections import defaultdict
 from pprint import pformat
 import pdb
 
+import concurrent.futures
+from threading import Lock, current_thread, main_thread
+import datetime
+load_lock = Lock()
+
 class InvalidReference(Exception):
     def __init__(self, identifier, key):
         self.system = identifier['system']
         self.value = identifier['value']
         self.key = key
-        pdb.set_trace()
+        #pdb.set_trace()
         super().__init__(self.message())
 
     def message(self):
@@ -65,7 +70,7 @@ class ResourceLoader:
     _max_validations_per_resource = -1
 
     _resource_buffer = []
-    def __init__(self, identifier_prefix, fhir_client, idcache=None):
+    def __init__(self, identifier_prefix, fhir_client, idcache=None, threaded=False):
         self.identifier_prefix = identifier_prefix
         self.identifier_rx = re.compile(identifier_prefix)
         self.client = fhir_client
@@ -78,21 +83,72 @@ class ResourceLoader:
         # yet, we'll stash them here and retry them when the bundle is done
         self.delayed_loading = []
 
+        # Load Buffer size
+        # We don't want to add an infinite number of records to the queue
+        # in case it causes memory issues, so we'll block loading new
+        # records until the futures are completed then we start building
+        # our queue back up
+        self.max_queue_size = 500
+        self.load_queue = []
+        self.thread_executor = None
+
+        self.records_loaded = 0
+        if threaded:
+            self.thread_executor = concurrent.futures.ThreadPoolExecutor(max_workers=32)
+
     def get_identifier(self, resource):
         if 'identifier' in resource:
             for identifier in resource['identifier']:
                 if 'system' in identifier:
-                    if self.identifier_rx.match(identifier['system']):
+                    with load_lock:
+                        id_match = self.identifier_rx.match(identifier['system'])
+                    
+                    if id_match:
                         if 'value' not in identifier:
                             pdb.set_trace()
                         return (identifier['system'], identifier['value'])
         return None
+
+    def launch_threads(self):
+        """This should be called before the application exits
+
+        There is no harm in calling it even during a non-asynchronous run
+        """
+        if self.thread_executor is not None:
+            start_time = datetime.datetime.now()
+            self.records_loaded += len(self.load_queue)
+            print(f"Launching threads ({len(self.load_queue)} | {self.records_loaded})")
+            for entry in concurrent.futures.as_completed(self.load_queue):
+                entry.result()
+            print(f"Thread queue ({len(self.load_queue)}) completed in {(datetime.datetime.now() - start_time).seconds}s")
+            self.load_queue = []
     
+    def cleanup_threads(self):
+        if self.thread_executor is not None:
+            self.launch_threads()
+
+            self.thread_executor.shutdown(wait=True)
+
+    def add_job_to_queue(self, resource):
+        # Run immediately if there is no executor or if it's one of the ontontology types
+        if resource['resourceType'] not in ['CodeSystem', 'ValueSet'] or self.thread_executor is not None:
+            self.load_queue.append(self.thread_executor.submit(self.load_resource, resource))
+
+            if self.max_queue_size <= len(self.load_queue):
+                self.launch_threads()
+        else:
+            self.load_resource(resource)
+
+
     def consume_load(self, group_name, resource):
         try:
             #pdb.set_trace()
-            build_references(resource, self.idcache, parent_key=None)
-            self.load_resource(resource)
+
+            with load_lock:
+                build_references(resource, self.idcache, parent_key=None)
+            
+            self.add_job_to_queue(resource)
+
         except InvalidReference as e:
             self.delayed_loading.append(resource)
 
@@ -103,15 +159,20 @@ class ResourceLoader:
         delayed_again = []
         for resource in resources:
             try:
-                build_references(resource, self.idcache, parent_key=None)
-                self.load_resource(resource)
-            except InvalidReference as e:
-                print(e.message())
-                delayed_again.append(resource)
+                with load_lock:
+                    build_references(resource, self.idcache, parent_key=None)
+                self.add_job_to_queue(resource)
 
-        self.delayed_loading = delayed_again
+            except InvalidReference as e:
+                with load_lock:
+                    print(e.message())
+                    delayed_again.append(resource)
+                
+        with load_lock:
+            self.delayed_loading = delayed_again
 
     def consume_validate(self, group_name, resource):
+        """Do we even care to use async with validate? I'm skipping it for now"""
         self.load_resource(resource, validate_only=True)
 
     def load_resource(self, resource, validate_only=False):
@@ -125,7 +186,14 @@ class ResourceLoader:
             print("Ooops! There is a problem with this record!. No resourceType!")
             sys.exit(1)
         resource_type = resource['resourceType']
-        self.resources_observed[resource_type] += 1
+
+        resource_index = 0
+        with load_lock:
+            self.resources_observed[resource_type] += 1
+            resource_index = self.resources_observed[resource_type]
+
+        if current_thread() is not main_thread():
+            current_thread().name = f"{resource_type}:{resource_index}"
 
         if validate_only and ResourceLoader._max_validations_per_resource > 0 and  self.resources_observed[resource_type] > ResourceLoader._max_validations_per_resource:
 
@@ -137,7 +205,6 @@ class ResourceLoader:
             if result['status_code'] < 300:
                 (system, uniqid) =  self.get_identifier(result['response'])
                 cache_id = True
-                
         else:
             if self.idcache and 'id' not in resource:
                 (system, uniqid) = self.get_identifier(resource)
@@ -193,10 +260,13 @@ class ResourceLoader:
                     skipped_warnings += 1 
 
             if last_error is not None:
-                print(pformat(last_error, width=160, compact=True))
-                skipped_errors -= 1
-            print(f"Skipped {skipped_warnings} warnings and {skipped_errors}.")
-            pdb.set_trace()
+                with load_lock:
+                    print(pformat(last_error, width=160, compact=True))
+                    skipped_errors -= 1
+            with load_lock:
+                print(f"Skipped {skipped_warnings} warnings and {skipped_errors}.")
+
+                pdb.set_trace()
             sys.exit(1)
         return result
 
