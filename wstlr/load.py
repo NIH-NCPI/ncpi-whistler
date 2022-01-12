@@ -12,11 +12,17 @@ from collections import defaultdict
 from pprint import pformat
 import pdb
 
+from wstlr.studyids import StudyIDs
+
 import concurrent.futures
 from threading import Lock, current_thread, main_thread
 import datetime
-load_lock = Lock()
 
+load_lock = Lock()  # Lock used for basic load functionality like ID fetching 
+                    # and updating
+
+id_lock = Lock()    # Lock used during insertion into the observed IDs 
+                    # This is a different resource than the load_lock
 class InvalidReference(Exception):
     def __init__(self, identifier, key):
         self.system = identifier['system']
@@ -70,13 +76,18 @@ class ResourceLoader:
     _max_validations_per_resource = -1
 
     _resource_buffer = []
-    def __init__(self, identifier_prefix, fhir_client, idcache=None, threaded=False):
+    def __init__(self, identifier_prefix, fhir_client, study_id, idcache=None, threaded=False):
         self.identifier_prefix = identifier_prefix
         self.identifier_rx = re.compile(identifier_prefix)
         self.client = fhir_client
         self.idcache = idcache
 
-        # resourceType => # seen
+        self.studyids = StudyIDs(fhir_client.target_service_url, study_id)
+        # We'll write this out at the end of the run so that we can have a complete
+        # list of IDs for purging if we want to clean them out
+        self.observed_record_ids = defaultdict(list)
+
+        # resourceType => # seen Useful only for validation cutoff.
         self.resources_observed = defaultdict(int)
 
         # For resources which reference something we haven't loaded
@@ -122,6 +133,9 @@ class ResourceLoader:
                 entry.result()
             print(f"Thread queue ({len(self.load_queue)}) completed in {(datetime.datetime.now() - start_time).seconds}s")
             self.load_queue = []
+
+    def save_study_ids(self, filename):
+        self.studyids.dump_to_file(filename)
     
     def cleanup_threads(self):
         if self.thread_executor is not None:
@@ -193,7 +207,7 @@ class ResourceLoader:
             resource_index = self.resources_observed[resource_type]
 
         if current_thread() is not main_thread():
-            current_thread().name = f"{resource_type}:{resource_index}"
+            current_thread().name = f"{resource_type}|{resource_index}"
 
         if validate_only and ResourceLoader._max_validations_per_resource > 0 and  self.resources_observed[resource_type] > ResourceLoader._max_validations_per_resource:
 
@@ -216,14 +230,19 @@ class ResourceLoader:
                     cache_id = True
 
                 identifier_type = "identifier"
-                if resource_type not in ['ObservationDefinition']:
-                    resource_identifier = f"{system}:{uniqid}"
+                if resource_type in ['ObservationDefinition']:
+                    #resource_identifier = f"{system}|{uniqid}"
+                    resource_identifier = None
+                else:
+                    resource_identifier = uniqid
+                """
                 else:
                     # ObservationDefinition is very early stages and has 
                     # no real search properties defined. So, we can't
                     # recall a prexisting ID if it isn't in our DB
                     resource_identifier = None
                     """
+                """
                     code_value = resource['code']['coding'][0]
                     code_system = code_value['system']
                     code = code_value['code']
@@ -237,12 +256,16 @@ class ResourceLoader:
             result = self.client.post(resource_type, 
                                         resource, 
                                         identifier=resource_identifier,
+                                        identifier_system=system,
                                         identifier_type=identifier_type,
                                         validate_only=validate_only)
         if result['status_code'] < 300:
             #pdb.set_trace()
+            self.studyids.add_id(resource_type, result['response']['id'])
+
             if cache_id and 'id' in result['response']:
-                self.idcache.store_id(resource_type, system, uniqid, result['response']['id'])
+                self.idcache.store_id(resource_type, system, uniqid, result['response']['id'], no_db=True)
+
         else:
             skipped_warnings = 0
             skipped_errors = 0
