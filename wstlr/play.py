@@ -19,6 +19,8 @@ from wstlr.load import ResourceLoader
 from wstlr.idcache import IdCache
 from wstlr.bundle import Bundle, ParseBundle, RequestType
 
+from ncpi_fhir_client.ridcache import RIdCache
+
 import pdb
 
 # whistle -harmonize_code_dir_spec code_harmonization/ 
@@ -233,9 +235,11 @@ for each of the auth types currently supported.\n"""
         if args.env:
             if args.max_validations > 0:
                 ResourceLoader._max_validations_per_resource = args.max_validations
-            fhir_client = FhirClient(host_config[args.env])
-            cache = IdCache(config['study_id'], fhir_client.target_service_url)
-            loader = ResourceLoader(config['identifier_prefix'], fhir_client, idcache=cache, threaded=args.threaded)
+            cache_remote_ids = RIdCache(valid_patterns=config.get('fhir_id_patterns'))
+            fhir_client = FhirClient(host_config[args.env], idcache=cache_remote_ids)
+
+            #cache = IdCache(config['study_id'], fhir_client.target_service_url)
+            loader = ResourceLoader(config['identifier_prefix'], fhir_client, study_id=config['study_id'], idcache=cache_remote_ids, threaded=args.threaded)
             if args.threaded:
                 print("Threading enabled")
                 loader.max_queue_size = args.load_buffer_size
@@ -259,17 +263,20 @@ for each of the auth types currently supported.\n"""
             with open(result_file, 'rt') as  f:
                 ParseBundle(f, resource_consumers)
             
+            max_final_attempts = 10
             if not args.validate_only:
-                while len(loader.delayed_loading) > 0:
+                while len(loader.delayed_loading) > 0 and max_final_attempts > 0:
                     # Make sure we clear out the queue in case there are some 
                     # things there that these reloads depend on
                     loader.launch_threads()
 
                     print(f"Attempting to load {len(loader.delayed_loading)} left-overs. ")
                     loader.retry_loading()
+                    max_final_attempts -= 1
 
             # Launch anything that was lingering in the queue
             loader.cleanup_threads()
+            loader.save_study_ids(output_directory / f"study-ids.json")
 
             if args.save_bundle:
                 transaction_bundle.close_bundle()
