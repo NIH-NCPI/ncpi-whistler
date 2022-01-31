@@ -38,7 +38,8 @@ def ParseBundle(bundle_file, resource_consumers):
     # and the key will be passed as the "resource_group"
     for resource_group in content.keys():
         for resource in content[resource_group]:
-            #pdb.set_trace()
+            #print(resource)
+
             for consumer in resource_consumers:
                 consumer(resource_group, resource)
 
@@ -105,16 +106,17 @@ class Bundle:
         if self.bundle:
 
             # For now, let's just skip the ID so that it works in a more general sense
-
+            verb = self.verb
             if 'resourceType' not in resource or 'id' not in resource:
                 pass
                 #print(resource.keys())
                 #pdb.set_trace()
 
-            if self.request_type == RequestType.PUT:
+            if 'id' in resource and self.request_type == RequestType.PUT:
                 id = resource['id']
                 destination = f"{resource['resourceType']}/{resource['id']}"
             else:
+                verb = "POST"
                 destination = f"{resource['resourceType']}" 
                 id = resource['identifier'][0]['value']
                 
@@ -136,7 +138,7 @@ class Bundle:
       "fullUrl": \"""" + full_url + """\",
       "resource": """ + resource_data + """,
       "request": {
-          "method": \"""" + self.verb + """\",
+          "method": \"""" + verb + """\",
           "url": \"""" + destination + """\"
       }
     }""")
