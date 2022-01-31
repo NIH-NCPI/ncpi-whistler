@@ -105,8 +105,8 @@ def ParseJSON(input_json, out_csv_file, variable_consumers=[], filter=[]):
                         except:
                             v = Variable({"varname":value['code'], "desc":value["description"]}, variable['varname'])
                             
-                            if v.system in ['consents']:
-                                #pdb.set_trace()
+                            #if v.system in ['consents']:
+                            #    pdb.set_trace()
                             filtered_out = False
                             for flt in filter:
                                 filtered_out = filtered_out or flt(v)
