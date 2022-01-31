@@ -49,7 +49,11 @@ def BuildConceptMap(csvfilename):
             # Local system => [dictionary with all columns for easy construction of the group/element]
             mappings = defaultdict(lambda: defaultdict(list))
 
+            rowcount = 0
             for row in reader:
+                rowcount += 1
+                if row.get('code system') is None:
+                    row['code system'] = ""
                 mappings[row['local code system']][row['code system']].append(row)
                 if row['code system'].strip() != "":
                     mappings[row['local code system']][""].append(row)
