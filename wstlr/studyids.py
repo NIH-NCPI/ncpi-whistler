@@ -58,6 +58,9 @@ class StudyIDs:
                 self.servername: {}
             }
 
+        if self.servername not in data[self.study_id]:
+            data[self.study_id][self.servername] = {}
+
         for resourceType in self.ids.keys():
             id_list = sorted(list(set(self.ids[resourceType])))
             data[self.study_id][self.servername][resourceType] = id_list 
