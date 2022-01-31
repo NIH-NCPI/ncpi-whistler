@@ -134,7 +134,7 @@ def ObjectifyDD(study_id, table_name, dd_file, dd_codesystems, colnames=None):
                 dd_codesystems[values] = DataDictionaryVariableCS(study_id, table_name, varname, values)
             variable['values'] = dd_codesystems[values].values_for_json()
             variable['values-details'] = {
-                'table-name': table_name,
+                'table-name': dd_codesystems[values].table_name,
                 'varname': dd_codesystems[values].varname
             }
             variable['values-url'] = dd_codesystems[values].url
@@ -187,7 +187,7 @@ def ObjectifyCSV(csv_file, aggregators={}, agg_splitter=None, code_details={}, v
 
     #pdb.set_trace()
     reader = csv.DictReader(csv_file, delimiter=',', quotechar='"')
-    reader.fieldnames = [x.lower() for x in reader.fieldnames]
+    reader.fieldnames = [x.lower().replace(" ", "_").replace(")", "").replace("(", "").replace("/", "_") for x in reader.fieldnames]
 
     # Standard columns will go straight as root properties of the current object
     # Aggregated columns will end up nested as properties of the varname "property"
