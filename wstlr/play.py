@@ -268,6 +268,7 @@ for each of the auth types currently supported.\n"""
                 while len(loader.delayed_loading) > 0 and max_final_attempts > 0:
                     # Make sure we clear out the queue in case there are some 
                     # things there that these reloads depend on
+                    #pdb.set_trace()
                     loader.launch_threads()
 
                     print(f"Attempting to load {len(loader.delayed_loading)} left-overs. ")
@@ -276,6 +277,7 @@ for each of the auth types currently supported.\n"""
 
             # Launch anything that was lingering in the queue
             loader.cleanup_threads()
+            loader.save_fails(output_directory / f"invalid-references.json")
             loader.save_study_ids(output_directory / f"study-ids.json")
 
             if args.save_bundle:
