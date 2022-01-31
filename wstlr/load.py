@@ -11,6 +11,8 @@ import sys
 from collections import defaultdict
 from pprint import pformat
 import pdb
+from pathlib import Path
+import json
 
 from wstlr.studyids import StudyIDs
 
@@ -82,6 +84,8 @@ class ResourceLoader:
         self.client = fhir_client
         self.idcache = idcache
 
+        self.study_id = study_id
+
         self.studyids = StudyIDs(fhir_client.target_service_url, study_id)
         # We'll write this out at the end of the run so that we can have a complete
         # list of IDs for purging if we want to clean them out
@@ -134,6 +138,42 @@ class ResourceLoader:
             print(f"Thread queue ({len(self.load_queue)}) completed in {(datetime.datetime.now() - start_time).seconds}s")
             self.load_queue = []
 
+    def save_fails(self, filename):
+        data = {}
+        savefile = Path(filename)
+
+        if savefile.exists():
+            with savefile.open('rt') as f:
+                data = json.load(f)
+        
+        if self.study_id not in data:
+            data[self.study_id] = {
+                self.client.target_service_url: {
+                    "bad_references": []
+                }
+            }
+        
+        if self.client.target_service_url not in data[self.study_id]:
+            data[self.study_id][self.client.target_service_url] = {
+                "bad_references": []
+            }
+        
+        problems = []
+        for resource in self.delayed_loading:
+            try:
+                build_references(resource, self.idcache)
+            except InvalidReference as e:
+                problems.append({
+                    "error": e.message(),
+                    "resource": resource
+                })
+
+        data[self.study_id][self.client.target_service_url]['bad_references'] = problems
+
+        with savefile.open('wt') as f:
+            json.dump(data, f, indent=2)
+        print(f"{len(self.delayed_loading)} unloaded resources written to {filename}")
+
     def save_study_ids(self, filename):
         self.studyids.dump_to_file(filename)
     
@@ -145,7 +185,7 @@ class ResourceLoader:
 
     def add_job_to_queue(self, resource):
         # Run immediately if there is no executor or if it's one of the ontontology types
-        if resource['resourceType'] not in ['CodeSystem', 'ValueSet'] or self.thread_executor is not None:
+        if resource['resourceType'] not in ['CodeSystem', 'ValueSet'] and self.thread_executor is not None:
             self.load_queue.append(self.thread_executor.submit(self.load_resource, resource))
 
             if self.max_queue_size <= len(self.load_queue):
@@ -159,6 +199,9 @@ class ResourceLoader:
             #pdb.set_trace()
 
             with load_lock:
+                if resource['resourceType'] == 'ObservationDefinition':
+                    #pdb.set_trace()
+                    pass
                 build_references(resource, self.idcache, parent_key=None)
             
             self.add_job_to_queue(resource)
@@ -174,12 +217,15 @@ class ResourceLoader:
         for resource in resources:
             try:
                 with load_lock:
+                    if resource['resourceType'] == 'ObservationDefinition':
+                        #pdb.set_trace()
+                        pass
                     build_references(resource, self.idcache, parent_key=None)
                 self.add_job_to_queue(resource)
 
             except InvalidReference as e:
                 with load_lock:
-                    print(e.message())
+                    #print(e.message())
                     delayed_again.append(resource)
                 
         with load_lock:
@@ -274,6 +320,7 @@ class ResourceLoader:
             for issue in result['response']['issue']:
                 if issue['severity'] == 'error':
                     if error_count < 5:
+                        print(pformat(resource))
                         print(pformat(issue, width=160, compact=True))
                         error_count += 1
                     else:
