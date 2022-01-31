@@ -17,7 +17,7 @@ def build_code(prefix, varwidth=6):
 
 class Variable:
     def __init__(self, varname, desc="", code_prefix="q"):
-        self.varname = varname 
+        self.varname = varname.replace(" ", "_") 
         self.desc = desc
         self.code_prefix = code_prefix
 
