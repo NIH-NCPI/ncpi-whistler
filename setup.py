@@ -21,7 +21,8 @@ setup(
             'buildcm = wstlr.conceptmap:exec',
             'extractjson = wstlr.extractor:exec',
             'bundleup = wstlr.bundle:exec',
-            'builddd = wstlr.dd:exec'
+            'builddd = wstlr.dd:exec',
+            'delfhir = wstlr.purge:exec'
         ]
     }
 )
