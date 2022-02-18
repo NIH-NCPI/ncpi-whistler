@@ -78,7 +78,7 @@ class ResourceLoader:
     _max_validations_per_resource = -1
 
     _resource_buffer = []
-    def __init__(self, identifier_prefix, fhir_client, study_id, idcache=None, threaded=False):
+    def __init__(self, identifier_prefix, fhir_client, study_id, idcache=None, threaded=False, thread_count=10):
         self.identifier_prefix = identifier_prefix
         self.identifier_rx = re.compile(identifier_prefix)
         self.client = fhir_client
@@ -109,7 +109,7 @@ class ResourceLoader:
 
         self.records_loaded = 0
         if threaded:
-            self.thread_executor = concurrent.futures.ThreadPoolExecutor(max_workers=32)
+            self.thread_executor = concurrent.futures.ThreadPoolExecutor(max_workers=thread_count)
 
     def get_identifier(self, resource):
         if 'identifier' in resource:
@@ -199,6 +199,8 @@ class ResourceLoader:
             #pdb.set_trace()
 
             with load_lock:
+                if 'resourceType' not in resource:
+                    print(pformat(resource))
                 if resource['resourceType'] == 'ObservationDefinition':
                     #pdb.set_trace()
                     pass
@@ -256,7 +258,6 @@ class ResourceLoader:
             current_thread().name = f"{resource_type}|{resource_index}"
 
         if validate_only and ResourceLoader._max_validations_per_resource > 0 and  self.resources_observed[resource_type] > ResourceLoader._max_validations_per_resource:
-
             # For now, we'll just return a successful status code
             return {"status_code" : 200 }
         # We'll handle CodeSystems and ValueSets differently
