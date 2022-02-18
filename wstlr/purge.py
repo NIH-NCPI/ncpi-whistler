@@ -84,7 +84,7 @@ class ResourceDeleter:
             if resource in resource_list:
                 ids = self.studyids.get_ids(study_id, resource)[::-1]
                 print(f"Deleting {len(ids)} from {resource}")
-                pdb.set_trace()
+                #pdb.set_trace()
                 self.ids_to_delete[resource] += ids
 
                 for id in self.ids_to_delete[resource]:
@@ -99,7 +99,7 @@ class ResourceDeleter:
             self.thread_executor.shutdown(wait=True)
 
     def retry_purge(self):
-        pdb.set_trace()
+        print("Retrying conflicted resources")
         for i in range(5, 0):
             if len(self.delayed_deletes) > 0:
                 self.ids_to_delete = self.delayed_deletes
