@@ -24,8 +24,11 @@ from pathlib import Path
 import sqlite3 
 import pdb
 
+
+
+
 class StudyIDs:
-    def __init__(self, fhir_endpoint, study_id, chunk_size=1000):
+    def __init__(self, fhir_endpoint, study_id=None, chunk_size=1000, threaded=False, thread_count=10):
         self.servername = fhir_endpoint
         self.study_id = study_id
         self.chunk_size = chunk_size
@@ -40,10 +43,37 @@ class StudyIDs:
         # at once
         self.lock = Lock()
 
+        self.data = None
 
     def add_id(self, resourceType, id):
         with self.lock:
             self.ids[resourceType].append(id)
+
+    def load_from_file(self, filename):
+        if self.data is None:
+            print("Loading IDs from file: {filename}")
+
+            self.data = {}
+            id_file = Path(filename)
+            if id_file.exists():
+                with id_file.open('rt') as f:
+                    self.data = json.load(f)
+
+            studies = []
+
+            for study in self.data.keys():
+                if self.servername in self.data[study]:
+                    studies.append(study)
+        
+        return studies
+
+    def get_ids(self, study_id, resource):
+        return self.data[study_id][self.servername][resource]
+
+    def list_resource_types(self, study_id):
+        assert(self.data is not None)
+
+        return self.data[study_id][self.servername].keys()
 
     def dump_to_file(self, filename):
         print(f"dumping IDs to file: {filename}")
