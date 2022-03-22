@@ -27,7 +27,7 @@ default_colnames = {
 def get_data(colname, row, namelist):
     #pdb.set_trace()
     if colname in namelist:
-        return row[namelist[colname]]
+        return row[namelist[colname]].strip()
     return None
 
 def store_data(colname, row, dest, namelist):
@@ -39,11 +39,14 @@ def store_data(colname, row, dest, namelist):
 xcleaner = re.compile(";\s+")
 def clean_values(valuestring):
     """I'm seeing some spaces in the value lists, but they aren't consistant, so we'll strip them out"""
+    if valuestring is None:
+        return ""
     return re.sub(xcleaner, ';', valuestring.strip())
 
 class DataDictionaryVariableCS:
     def __init__(self, study, table_name, varname, values):
         self.varname = varname
+
         if varname is None:
             self.url = f"{system_base}/CS/data-dictionary/{study}/{table_name}"
         else:
@@ -65,7 +68,7 @@ class DataDictionaryVariableCS:
             if "=" in entry:
                 code,desc = entry.split("=")[0:2]
                 if code not in transformed_values:
-                    transformed_values[code] = desc
+                    transformed_values[code.strip()] = desc.strip()
             else:
                 if len(split_values) > 1 and entry.strip() != "":
                     transformed_values[entry.strip()] = entry.strip()
@@ -101,6 +104,9 @@ def ObjectifyDD(study_id, table_name, dd_file, dd_codesystems, colnames=None):
     
     Values are aggregated into key/value objects where the value is the key and the meaning is the value
     """
+
+    print(f"The table's name is: {table_name}")
+
     global default_colnames
     if colnames is None:    
         colnames = default_colnames
@@ -114,8 +120,15 @@ def ObjectifyDD(study_id, table_name, dd_file, dd_codesystems, colnames=None):
     #pdb.set_trace()
     table_cs_values = []
     for line in reader:
-        varname = get_data('varname', line, colnames)
-        desc = get_data('desc', line, colnames)
+        try:
+            varname = get_data('varname', line, colnames)
+            desc = get_data('desc', line, colnames)
+        except BaseException as e:
+            print(f"An issue was found extracting data from file, {dd_file.name}")
+            print(f"with header: {colnames} + {line.keys()}")
+            print(e)
+            sys.exit(1)
+
         table_cs_values.append(f"{varname}={desc}")
         variable = {
             'varname': varname,
@@ -128,7 +141,7 @@ def ObjectifyDD(study_id, table_name, dd_file, dd_codesystems, colnames=None):
         if 'values' in colnames:
             variable['values'] = []
             vname = colnames['values']
-            #pdb.set_trace()
+            
             values = clean_values(line[vname])
             if values not in dd_codesystems:
                 dd_codesystems[values] = DataDictionaryVariableCS(study_id, table_name, varname, values)
@@ -141,6 +154,10 @@ def ObjectifyDD(study_id, table_name, dd_file, dd_codesystems, colnames=None):
 
         dd_content['variables'].append(variable)
 
+
+    if table_name in dd_codesystems:
+        pdb.set_trace()
+        print(f"We have already processed the table, {table_name}")
     assert(table_name not in dd_codesystems)
     #pdb.set_trace()
     dd_codesystems[table_name] = DataDictionaryVariableCS(study_id, table_name, None, ";".join(table_cs_values))
@@ -247,6 +264,7 @@ def DataCsvToObject(config):
             "title": config['study_title'],
             "desc": config['study_desc'],
             "identifier-prefix": config['identifier_prefix'],
+            "url": config['url'],
             "data-dictionary": []
         },
         "code-systems": []
@@ -280,7 +298,7 @@ def DataCsvToObject(config):
                 dataset['study']['data-dictionary'].append(dd)
                 dd_based_varnames = build_varname_lookup(dd)
 
-        with open(config['dataset'][category]['filename'], encoding='utf-8-sig') as f:
+        with open(config['dataset'][category]['filename'], encoding='utf-8-sig', errors='ignore') as f:
             data_chunk = ObjectifyCSV(f, aggregators, agg_splitter, code_details, dd_based_varnames)
 
         dataset[category] = data_chunk
