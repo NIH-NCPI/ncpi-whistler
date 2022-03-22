@@ -31,7 +31,151 @@ import pdb
 
 # code,text,code system,local code,display,local code system,comment
 
-def BuildConceptMap(csvfilename):
+class ConceptMap:
+    url_base = None
+    def __init__(self, name, source_uri, target_uri, title, description):
+        """We'll create a single direction CM where the URIs represent the URLs associated with the ValueSets produced to support the CM"""
+        self.name = name
+        self.source_uri = source_uri
+        self.target_uri = target_uri
+        self.title = title
+        self.description = description
+
+        # source system => target system => source code => (target_codes)
+        self.mappings = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
+        self.sources = defaultdict(dict)
+        self.targets = defaultdict(dict)
+
+    def prepare_for_whistle(self, source_id, source_name, source_title, target_id, target_name, target_title):
+        """Generate an object suitable as input to Whistle"""
+
+        cm = {
+            "name": self.name,
+            "title": self.title,
+            "description": self.description,
+            "sources": {
+                "id": source_id,
+                "name": source_name,
+                "title": source_title,
+                "codes": []
+            },
+            "targets": {
+                "id": target_id,
+                "name": target_name,
+                "title": target_title,
+                "codes": []
+            },
+            "group": []
+        }
+
+        for source_system in self.mappings:
+            for target_system in self.mappings[source_system]:
+                cm["group"].append({
+                    "source": source_system,
+                    "target": target_system,
+                    "element": []
+                })
+                for source_code in self.mappings[source_system][target_system]:
+                    source = self.sources[source_system][source_code]
+                    element = {
+                        "code": source['code'],
+                        "display": source['display'],
+                        "target": []
+                    }
+                    for target_code in self.mappings[source_system][target_system][source_code]:
+                        target = self.targets[target_system][target_code]
+                        element['target'].append({
+                            "code": target['code'],
+                            "display": target['display'],
+                            "equivalence": "equivalent"
+                        })
+        return cm
+
+    def generate_cm(self):
+        cm = {
+            "resourceType": "ConceptMap",
+            "url": f"{ConceptMap.url_base}/conceptmap/dd/{self.name}",
+            "name": self.name,
+            "identifier": self.identifier(),
+            "title": self.title,
+            "status": "draft",
+            "experimental": False,
+            "description": self.description,
+            "sourceUri": self.source_uri,
+            "targetUri": self.target_uri,
+            "group": []
+        }        
+
+        for source_system in self.mappings:
+            for target_system in self.mappings[source_system]:
+                cm["group"].append({
+                    "source": source_system,
+                    "target": target_system,
+                    "element": []
+                })
+                for source_code in self.mappings[source_system][target_system]:
+                    source = self.sources[source_system][source_code]
+                    element = {
+                        "code": source['code'],
+                        "display": source['display'],
+                        "target": []
+                    }
+                    for target_code in self.mappings[source_system][target_system][source_code]:
+                        target = self.targets[target_system][target_code]
+                        element['target'].append({
+                            "code": target['code'],
+                            "display": target['display'],
+                            "equivalence": "equivalent"
+                        })
+
+    def identifier(self):
+        assert(ConceptMap.url_base is not None)
+
+        return {
+            "system": f"{ConceptMap.url_base}/data-dictionary/cm/",
+            "value": self.name
+        }
+
+    def add_mapping(self, source, target):
+        """Each coding should have: system, code and display"""
+        self.sources[source['system']][source['code']] = source
+        self.targets[target['system']][target['code']] = target
+        self.mappings[source['system']][target['system']][source['code']].add(target['code'])
+
+    def source_valueset(self, id, name, title):
+        return self.generate_valueset(self.sources, id, name, title)
+
+    def target_valueset(self, id, name, title):
+        return self.generate_valueset(self.targets, name, title)
+
+    def generate_valueset(self, codings, id, name, title):
+        # Return the valueset associated with the source data
+        vs = {
+            "resourceType": "ValueSet",
+            "id": id,
+            "url": f"{ConceptMap.url_base}/data-dictionary/vs/{id}",
+            "name": name,
+            "title": title,
+            "status": "draft",
+            "experimental": False,
+            "publisher": "NCPI FHIR Working Group",
+            "expansion": {
+                "contains": []
+            }
+        }
+
+        for system in codings:
+            for code in codings[system]:
+                coding = codings[system][code]
+                vs['expansion']['contains'].append({
+                    "code": coding['code'],
+                    "system": coding['system'],
+                    "display": coding['display']
+                })
+
+        return vs
+
+def BuildConceptMap(csvfilename, curies):
     # We'll assume that we only want to filename with any path/dot information
     name_prefix =csvfilename.split("/")[-1].split(".")[0]
     outname = ".".join(csvfilename.split(".")[0:-1]) + ".json"
@@ -82,6 +226,10 @@ def BuildConceptMap(csvfilename):
                         "element": []
                     }
 
+                    curie = ""
+                    if the_target in curies:
+                        curie = curies[the_target] + ":"
+
                     prev_code = None
                     for elm in mappings[source][target]:
                         local_code = elm['local code']
@@ -96,7 +244,7 @@ def BuildConceptMap(csvfilename):
                             })
                         if target == the_target and the_target != "self":
                             element['element'][-1]['target'].append({
-                                "code": elm['code'],
+                                "code": f"{curie}{elm['code']}",
                                 "display": elm[rdisplay_kw],
                                 "equivalence": 'equivalent'
                             })
