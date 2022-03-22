@@ -21,14 +21,15 @@ resource_order = [
     'ValueSet',
     'ObservationDefinition', 
     'ActivityDefinition',
-    'Group',
     'Patient',
+    'Group',
     'Specimen',
+    'Substance',
     'Encounter',
     'Observation',
     'Condition',
-    'ResearchStudy',
-    'ResearchSubject'
+    'ResearchSubject',
+    'ResearchStudy'
 ]
 
 class ResourceDeleter:
@@ -55,20 +56,22 @@ class ResourceDeleter:
         self.studyids = StudyIDs(self.client.target_service_url)
         return self.studyids.load_from_file(filename)
 
-    def delete_resources_by_tag(self, study_id):
+    def delete_resources_by_tag(self, study_id, resource_list=None):
         for resource in resource_order[::-1]:
-            print(f"Purging All IDS from {study_id}:{resource}")
-            qry = f"{resource}?_tag={study_id}&_elements=id"
+            if resource in resource_list or 'ALL' in resource_list:
+                print(f"Purging All IDS from {study_id}:{resource}")
+                #pdb.set_trace()
+                qry = f"{resource}?_tag={study_id}&_elements=id"
 
-            response = self.client.get(qry)    
-            ids = []
-            for entry in response.entries:
-                if 'resource' not in entry:
-                    pdb.set_trace()
-                self.add_job_to_queue(resource, entry['resource']['id'])
-            self.launch_threads()
+                response = self.client.get(qry)    
+                ids = []
+                for entry in response.entries:
+                    # If it's an empty bundle, then there won't be a resource
+                    if 'resource' in entry:
+                        self.add_job_to_queue(resource, entry['resource']['id'])
+                self.launch_threads()
 
-            print(f"{resource} : {response.response['total']}")            
+                print(f"{resource} : {response.response['total']}")            
 
     def delete_resources(self, study_id, resource_list=None):
         global resource_order
@@ -80,6 +83,7 @@ class ResourceDeleter:
 
             resource_list = self.studyids.list_resource_types(study_id)
 
+        #pdb.set_trace()
         for resource in resource_order[::-1]:
             if resource in resource_list:
                 ids = self.studyids.get_ids(study_id, resource)[::-1]
@@ -143,12 +147,16 @@ class ResourceDeleter:
         if current_thread() is not main_thread():
             current_thread().name = f"{resource}/{id}"
 
+        if id == "207020":
+            pdb.set_trace()
         response = self.client.delete_by_record_id(resource, id, silence_warnings=True)
         #pdb.set_trace()
         status_code = response['status_code']
         if status_code == 200:
             return
         elif status_code == 409:
+            print(response['response']['issue'][0]['diagnostics'])
+            #pdb.set_trace()
             self.delayed_deletes[resource].append(id)
         else:
             print(response)
@@ -238,9 +246,9 @@ def exec(args=None):
     if args.resource is None or len(args.resource) == 0:
         args.resource = ['ALL']
     
-    pdb.set_trace()
+    #pdb.set_trace()
     if args.delete_files_by_tag:
-        purgery.delete_resources_by_tag(args.study_name)
+        purgery.delete_resources_by_tag(args.study_name, resource_list = args.resource)
     else:
         purgery.delete_resources(args.study_name, resource_list = args.resource)
 
