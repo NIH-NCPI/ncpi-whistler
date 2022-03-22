@@ -22,7 +22,8 @@ setup(
             'extractjson = wstlr.extractor:exec',
             'bundleup = wstlr.bundle:exec',
             'builddd = wstlr.dd:exec',
-            'delfhir = wstlr.purge:exec'
+            'delfhir = wstlr.purge:exec',
+            'inspectjson = wstlr.inspector:exec'
         ]
     }
 )
