@@ -12,13 +12,22 @@ from collections import defaultdict
 from pprint import pformat
 import pdb
 from pathlib import Path
+from argparse import ArgumentParser, FileType
 import json
 
+from pathlib import Path
+from ncpi_fhir_client.fhir_client import FhirClient
+from yaml import safe_load
 from wstlr.studyids import StudyIDs
 
 import concurrent.futures
 from threading import Lock, current_thread, main_thread
 import datetime
+
+from wstlr.bundle import Bundle, ParseBundle, RequestType
+
+from ncpi_fhir_client.ridcache import RIdCache
+
 
 load_lock = Lock()  # Lock used for basic load functionality like ID fetching 
                     # and updating
@@ -44,7 +53,11 @@ def build_references(record, idcache, parent_key=None):
     # Bulk Export doesn't order things as nicely as it could
     # so we may need to 
     for key, value in record.items():
-        if key == "identifier" and parent_key is not None:
+        # Containers are backbone items, which will probably have an identifier that
+        # doesn't work like a reference
+        if key == "identifier" and parent_key is not None and parent_key != 'container':
+            if type(value) is not dict:
+                pdb.set_trace()
             assert(type(value) is dict)
             if 'value' not in value:
                 pdb.set_trace()
@@ -55,6 +68,8 @@ def build_references(record, idcache, parent_key=None):
                 del record[key]
                 record['reference'] = f"{resource_type}/{id}"
             else:
+                #print(value)
+                #pdb.set_trace()
                 raise InvalidReference(value, parent_key)
         else:
             if type(value) is list:
@@ -340,6 +355,125 @@ class ResourceLoader:
                 pdb.set_trace()
             sys.exit(1)
         return result
+
+
+def exec():
+    host_config_filename = Path("fhir_hosts")
+
+    host_config = safe_load(host_config_filename.open("rt"))
+    # Just capture the available environments to let the user
+    # make the selection at runtime
+    env_options = sorted(host_config.keys())
+    
+    parser = ArgumentParser(
+        description="Load whistle output file into selected FHIR server."
+    )
+    parser.add_argument(
+        "-e",
+        "--env",
+        choices=env_options,
+        help=f"Remote configuration to be used to access the FHIR server. If no environment is provided, the system will stop after generating the whistle output (no validation, no loading)",
+    )
+    parser.add_argument(
+        "-v",
+        "--validate-only",
+        action='store_true',
+        help="Indicate that submissions to the FHIR server are just validation calls and not for proper loading. Anything that fails validation result in a termination."
+    )
+    parser.add_argument(
+        "-m",
+        "--max-validations",
+        type=int,
+        default=1000,
+        help="If validating instead of loading, this determines how many of a given resource type will be validated. Values less than one means no limit to the number of resources validated."
+    )
+
+    parser.add_argument(
+        "-t",
+        "--threaded", 
+        action='store_true',
+        help="When true, loads will be submitted in parallel."
+    )
+    parser.add_argument(
+        "-lb",
+        "--load-buffer-size",
+        default=5000,
+        type=int,
+        help="Number of records to buffer before launching threaded loads. Only matters when running with async=true"
+    )    
+    parser.add_argument(
+        "-r",
+        "--require-official",
+        type=bool,
+        default=True
+    )    
+    parser.add_argument(
+        "-s",
+        "--study-id",
+        required=True,
+        type=str,
+        help="Study ID which will be found in the meta.tag (bad things will happen if this is wrong)"
+    )
+    parser.add_argument(
+        "--fhir-id-patterns",
+        type=str,
+        default=None,
+        help="I need some time to figure what this did..."
+    )
+    parser.add_argument(
+        "--identifier-prefix",
+        type=str,
+        required=True,
+        help="This is used throughout whistle. It's probably necessary for bundle generation, which shouldn't matter here, but go ahead and provide it for now..."
+    )
+    parser.add_argument(
+        "file",
+        required=True,
+        type=FileType('rt'),
+        help="JSON output from Whistle to be inspected.",
+    )
+    args = parser.parse_args(sys.argv[1:])
+    
+    if args.max_validations > 0:
+        ResourceLoader._max_validations_per_resource = args.max_validations
+    cache_remote_ids = RIdCache(study_id=args.study_id, valid_patterns=args.fhir_id_patterns)
+    fhir_client = FhirClient(host_config[args.env], idcache=cache_remote_ids)
+
+    #cache = IdCache(config['study_id'], fhir_client.target_service_url)
+    loader = ResourceLoader(args.identifier_prefix, fhir_client, study_id=args.study_id, idcache=cache_remote_ids, threaded=args.threaded)
+
+    if args.threaded:
+        print("Threading enabled")
+        loader.max_queue_size = args.load_buffer_size
+    resource_consumers = []
+
+    # if we are loading, we'll grab the loader so that we can 
+    if args.validate_only:
+        resource_consumers.append(loader.consume_validate)
+    else:
+        resource_consumers.append(loader.consume_load)
+
+    with open(args.file, 'rt') as  f:
+        ParseBundle(f, resource_consumers)
+    
+    max_final_attempts = 10
+    if not args.validate_only:
+        while len(loader.delayed_loading) > 0 and max_final_attempts > 0:
+            # Make sure we clear out the queue in case there are some 
+            # things there that these reloads depend on
+            #pdb.set_trace()
+            loader.launch_threads()
+
+            print(f"Attempting to load {len(loader.delayed_loading)} left-overs. ")
+            loader.retry_loading()
+            max_final_attempts -= 1
+
+    # Launch anything that was lingering in the queue
+    loader.cleanup_threads()
+
+    output_directory = Path(args.file.name).parent
+    loader.save_fails(output_directory / f"invalid-references.json")
+    loader.save_study_ids(output_directory / f"study-ids.json")
 
 
 
