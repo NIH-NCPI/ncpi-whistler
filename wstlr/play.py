@@ -5,6 +5,7 @@
 from pathlib import Path
 from wstlr.conceptmap import BuildConceptMap
 from wstlr.extractor import DataCsvToObject
+from wstlr.inspector import ResourceInspector
 from  subprocess import run
 import json
 from ncpi_fhir_client.fhir_client import FhirClient
@@ -199,11 +200,11 @@ for each of the auth types currently supported.\n"""
 
     for config_file in args.config:
         config = safe_load(config_file)
-
+        require_official = config.get('require_official')
         # Build ConceptMaps if provided
         for dataset in config['dataset'].keys():
             if 'code_harmonization' in config['dataset'][dataset]:
-                BuildConceptMap(config['dataset'][dataset]['code_harmonization'])
+                BuildConceptMap(config['dataset'][dataset]['code_harmonization'], curies=config.get('curies'))
 
         # Work out the destination for the Whistle input
         output_directory = Path(args.intermediate)
@@ -228,6 +229,12 @@ for each of the auth types currently supported.\n"""
                         harmonydir=config['code_harmonization_dir'], 
                         projectorlib=config['projector_lib'], 
                         outputdir=str(output_directory))
+
+            # We really only want to run this when we generate a new Whistle file,
+            # so we'll do this work separately from the other consumers
+            resource_inspector = ResourceInspector(require_official=require_official)
+            with open(result_file, 'rt') as  f:
+                ParseBundle(f, [resource_inspector.check_identifier])            
         else:
             result_file = str(whistle_output)
             print(f"Skipping whistle since none of the input has changed")
@@ -235,7 +242,7 @@ for each of the auth types currently supported.\n"""
         if args.env:
             if args.max_validations > 0:
                 ResourceLoader._max_validations_per_resource = args.max_validations
-            cache_remote_ids = RIdCache(valid_patterns=config.get('fhir_id_patterns'))
+            cache_remote_ids = RIdCache(study_id=config['study_id'], valid_patterns=config.get('fhir_id_patterns'))
             fhir_client = FhirClient(host_config[args.env], idcache=cache_remote_ids)
 
             #cache = IdCache(config['study_id'], fhir_client.target_service_url)
