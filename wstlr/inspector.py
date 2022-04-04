@@ -25,9 +25,15 @@ def ReportError(is_error, resource, message):
 
 def CheckForUse(identifiers):
     official_count = 0
-    for idnt in identifiers:
-        if idnt.get('use') == 'official':
-            official_count += 1
+
+    # ConceptMap can only have one identifier (possibly others as well)
+    if type(identifiers) is list:
+        for idnt in identifiers:
+            if idnt.get('use') == 'official':
+                official_count += 1
+    else:
+        if identifiers.get('use') == 'official':
+            official_count = 1
     if official_count != 1:
         print(identifiers)
         pdb.set_trace()
@@ -41,14 +47,21 @@ class ResourceInspector:
         self.require_official = require_official
 
     def check_identifier(self, group_name, resource):
-        ReportError('identifier' not in resource, resource, "There is no identifier present in this resource")
-        ReportError('meta' not in resource or 'tag' not in resource['meta'], resource, "There is no meta.tag present.")
         ReportError('resourceType' not in resource, resource, "There is no resourceType specified in this resource")
+
+        # CMs can only have one identifier, which has all sorts of downstream issues with the system...so, skipping them for
+        # now
+        if resource['resourceType'] not in ['ConceptMap']:
+            ReportError('identifier' not in resource, resource, "There is no identifier present in this resource")
+        ReportError('meta' not in resource or 'tag' not in resource['meta'], resource, "There is no meta.tag present.")
 
         if self.require_official:
             ReportError(not CheckForUse(resource['identifier']), resource, "There is no 'use: official' as requested by portal team")
 
-        identifier = resource['identifier'][0]
+        identifier = resource['identifier']
+        if type(identifier) is list:
+            identifier = resource['identifier'][0]
+        
         resourcetype = resource['resourceType']
         if 'system' not in identifier:
             print(identifier)

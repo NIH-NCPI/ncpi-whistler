@@ -14,6 +14,7 @@ import pdb
 from pathlib import Path
 from argparse import ArgumentParser, FileType
 import json
+from copy import deepcopy
 
 from pathlib import Path
 from ncpi_fhir_client.fhir_client import FhirClient
@@ -128,7 +129,12 @@ class ResourceLoader:
 
     def get_identifier(self, resource):
         if 'identifier' in resource:
-            for identifier in resource['identifier']:
+            identifiers = deepcopy(resource['identifier'])
+
+            if type(identifiers) is not list:
+                identifiers = [identifiers]
+
+            for identifier in identifiers:
                 if 'system' in identifier:
                     with load_lock:
                         id_match = self.identifier_rx.match(identifier['system'])
