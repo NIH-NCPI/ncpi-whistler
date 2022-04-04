@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 from collections import defaultdict
 from copy import deepcopy
-
+from wstlr.conceptmap import ObjectifyHarmony
 import pdb
 
 system_base = "https://nih-ncpi.github.io/ncpi-fhir-ig"
@@ -104,9 +104,6 @@ def ObjectifyDD(study_id, table_name, dd_file, dd_codesystems, colnames=None):
     
     Values are aggregated into key/value objects where the value is the key and the meaning is the value
     """
-
-    print(f"The table's name is: {table_name}")
-
     global default_colnames
     if colnames is None:    
         colnames = default_colnames
@@ -267,10 +264,13 @@ def DataCsvToObject(config):
             "url": config['url'],
             "data-dictionary": []
         },
-        "code-systems": []
+        "code-systems": [],
+        "harmony": [],
     }
 
     dd_codesystems = {}
+    harmony_files = set()
+
     for category in config['dataset'].keys():
         data_chunk = []
         aggregators = {}
@@ -297,6 +297,13 @@ def DataCsvToObject(config):
                 dd = ObjectifyDD(config['study_id'], category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'))
                 dataset['study']['data-dictionary'].append(dd)
                 dd_based_varnames = build_varname_lookup(dd)
+
+        if 'code_harmonization' in config['dataset'][category]:
+            harmony_file = config['dataset'][category]['code_harmonization']
+            if harmony_file not in harmony_files:
+                harmony_files.add(harmony_file)
+                dataset['harmony'].append(ObjectifyHarmony(harmony_file, curies=config.get('curies')))
+
 
         with open(config['dataset'][category]['filename'], encoding='utf-8-sig', errors='ignore') as f:
             data_chunk = ObjectifyCSV(f, aggregators, agg_splitter, code_details, dd_based_varnames)

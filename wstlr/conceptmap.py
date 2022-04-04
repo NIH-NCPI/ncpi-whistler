@@ -31,6 +31,168 @@ import pdb
 
 # code,text,code system,local code,display,local code system,comment
 
+def ObjectifyHarmony(harmony_csv, curies):
+    # source system => target system => source code => (target_codes)
+    mappings = {}       # defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    sources = defaultdict(dict)
+    targets = defaultdict(dict)
+
+    # We need to aggregate the value-set components by system, parent and table so that we can 
+    # create them properly within fhir
+    vs_sources = defaultdict(list)
+
+    if curies is None:
+        curies = {}
+
+    with open(harmony_csv, 'rt') as f:
+        reader = DictReader(f, delimiter=',', quotechar='"')
+
+        for line in reader:
+            if line['table_name'].strip() != "":
+                #print(line.keys())
+                local_cs = line['local code system']
+                if local_cs not in mappings:
+                    mappings[local_cs] = {
+                        "source_cs": local_cs,
+                        "parent": line['parent_varname'],
+                        "table": line['table_name'],
+                        "group": {}
+                    }
+
+                target_cs = line['code system']
+                if target_cs not in mappings[local_cs]['group']:
+                    mappings[local_cs]['group'][target_cs] = {
+                        "target_cs": target_cs,
+                        "codes": {}
+                    }
+                
+                local_code = line['local code']
+                if local_code not in mappings[local_cs]['group'][target_cs]['codes']:
+                    mappings[local_cs]['group'][target_cs]['codes'][local_code] = {
+                        "code": local_code,
+                        "system": "",
+                        "table": line['table_name'],
+                        "parent": line['parent_varname'],
+                        "display": line['text'],
+                        "table_name": line['table_name'],
+                        "parent_varname": line['parent_varname'],
+                        "target_codes": {}
+                    }
+                target_code = line['code']
+                curie = ""
+                if  target_cs in curies:
+                    curie = curies[target_cs] + ":"
+
+                # We do have some redundant rows where the CDE has two variables but the dataset doesn't specify 
+                # at that detail. We'll just keep the last and hope they are identical
+                if target_code in mappings[local_cs]['group'][target_cs]['codes'][local_code]['target_codes']:
+                    print(f"{target_cs}:{target_code} appears more than once in for {local_cs}:{local_code}")
+                    
+                mappings[local_cs]['group'][target_cs]['codes'][local_code]['target_codes'][target_code] = {
+                    "code": line['code'],
+                    "display": line['display'],
+                    "system": line['code system'],
+                    "table": "",
+                    "parent": ""
+                }
+
+                vss_key = f"{local_cs}:{line['table_name']}:{line['parent_varname']}"
+                vs_sources[vss_key].append({
+                    "code": local_code,
+                    "display": line['text']
+                })
+                sources[local_cs][local_code] = {
+                    "code": local_code,
+                    "display": line['text'],
+                    "system": "",
+                    "table": line['table_name'],
+                    "parent": line['parent_varname']
+                }
+                targets[target_cs][target_code] = {
+                    "code": f"{curie}{target_code}",
+                    "display": line['display'],
+                    "system": target_cs,
+                    "table": "",
+                    "parent": ""
+                }
+
+    cm_obj = {
+        # Stuff to build the two value sets
+        "source_codes": [],
+        "target_codes": [],
+        "mappings": []
+    }
+    #pdb.set_trace()
+    for vs_key in vs_sources:
+        csystem, tablename, parentvarname = vs_key.split(":")
+        curie = ""
+        if csystem in curies:
+            curie = curies[csystem] + ":"
+        
+        cm_obj['source_codes'].append({
+            "system": csystem,
+            "table_name": tablename,
+            "parent_varname": parentvarname,
+            "codes":[]
+        })
+
+        for coding in vs_sources[vs_key]:
+            code = f"{curie}{coding['code']}"
+            cm_obj['source_codes'][-1]['codes'].append({
+                "code": code,
+                "display": coding['display']
+            })
+    for target_cs in targets:
+        curie = ""
+        cm_obj['target_codes'].append({
+            "system": target_cs,
+            "table_name": "",
+            "parent_varname": "",
+            "codes": []
+        })
+        #if  target_cs in curies:
+        #    curie = curies[target_cs] + ":"
+        for code in targets[target_cs]:
+            coding = deepcopy(targets[target_cs][code])
+            coding['code'] = f"{curie}{coding['code']}"
+
+            cm_obj['target_codes'][-1]['codes'].append({
+                "code": coding['code'],
+                "display": coding['display']
+            })
+
+    for local_cs in mappings:
+        for target_cs in mappings[local_cs]['group']:
+            local_mapping = {
+                "source": local_cs,
+                "table": mappings[local_cs]['table'],
+                "parent": mappings[local_cs]['parent'],
+                "target": target_cs,
+                "element": []
+            }               
+
+            for source_code in mappings[local_cs]['group'][target_cs]['codes']:
+                source_mapping = mappings[local_cs]['group'][target_cs]['codes'][source_code]
+                element = {
+                    "code": source_code,
+                    "display": source_mapping['display'],
+                    "target": []
+                }
+                #pdb.set_trace()
+                for target_code in source_mapping['target_codes']:
+                    target_mapping = source_mapping['target_codes'][target_code]
+                    #print(target_mapping)
+                    element['target'].append({
+                        "code": target_mapping['code'],
+                        "display": target_mapping['display']
+                    })
+                local_mapping['element'].append(element)
+            
+            #pdb.set_trace()
+            cm_obj['mappings'].append(local_mapping)
+
+    return cm_obj
+
 class ConceptMap:
     url_base = None
     def __init__(self, name, source_uri, target_uri, title, description):
@@ -136,7 +298,7 @@ class ConceptMap:
             "value": self.name
         }
 
-    def add_mapping(self, source, target):
+    def add_mapping(self, source, target): 
         """Each coding should have: system, code and display"""
         self.sources[source['system']][source['code']] = source
         self.targets[target['system']][target['code']] = target
@@ -148,8 +310,11 @@ class ConceptMap:
     def target_valueset(self, id, name, title):
         return self.generate_valueset(self.targets, name, title)
 
-    def generate_valueset(self, codings, id, name, title):
+    def generate_valueset(self, codings, id, name, title, curies):
         # Return the valueset associated with the source data
+
+        if curies is None:
+            curies = {}
         vs = {
             "resourceType": "ValueSet",
             "id": id,
@@ -159,17 +324,24 @@ class ConceptMap:
             "status": "draft",
             "experimental": False,
             "publisher": "NCPI FHIR Working Group",
-            "expansion": {
-                "contains": []
+            "compose": {
+                "include": []
             }
         }
 
         for system in codings:
+            curie = ""
+            if system in curies:
+                curie = curies[system] + ":"
+            vs['compose']['include'].append({
+                "system": system,
+                "concept": []
+            })
             for code in codings[system]:
+                code = f"{curie}{coding['code']}"
                 coding = codings[system][code]
-                vs['expansion']['contains'].append({
-                    "code": coding['code'],
-                    "system": coding['system'],
+                vs['compose']['include'][-1]['concept'].append({
+                    "code": code,
                     "display": coding['display']
                 })
 
