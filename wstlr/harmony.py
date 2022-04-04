@@ -81,7 +81,9 @@ def ParseJSON(input_json, out_csv_file, variable_consumers=[], filter=[]):
 
         for variable in table['variables']:
             v = Variable(variable, table_name)
-
+            current_variable_name = v.varname
+            #if current_variable_name == 'q-gastro':
+            #    pdb.set_trace()
             filtered_out = False
             for flt in filter:
                 filtered_out = filtered_out or flt(v)
@@ -96,8 +98,6 @@ def ParseJSON(input_json, out_csv_file, variable_consumers=[], filter=[]):
                 for value in variable['values']:
                     vdesc = value['description']
 
-
-
                     if vdesc.lower() not in ignore_these_values:
                         try:
                             float(vdesc)
@@ -110,7 +110,8 @@ def ParseJSON(input_json, out_csv_file, variable_consumers=[], filter=[]):
                             filtered_out = False
                             for flt in filter:
                                 filtered_out = filtered_out or flt(v)
-
+                            #if current_variable_name == 'q-gastro':
+                            #    pdb.set_trace()
                             if not filtered_out:
                                 for consumer in variable_consumers:
                                     consumer(v)
