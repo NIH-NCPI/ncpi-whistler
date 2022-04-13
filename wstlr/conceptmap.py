@@ -353,7 +353,7 @@ def BuildConceptMap(csvfilename, curies):
     outname = ".".join(csvfilename.split(".")[0:-1]) + ".json"
 
     # Skip this step if the json file is newer
-    if not Path(outname).exists() or \
+    if (not Path(outname).exists()) or \
         (Path(csvfilename).stat().st_mtime > Path(outname).stat().st_mtime):
 
         with open(csvfilename, 'rt') as f:
@@ -431,6 +431,7 @@ def BuildConceptMap(csvfilename, curies):
             
             with open(outname, mode='wt') as f:
                 f.write(json.dumps(concept_map, indent=2))
+    return Path(outname).stat().st_mtime
 
 def Exec(argv=None):
     if argv is None:
