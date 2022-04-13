@@ -58,8 +58,12 @@ def get_latest_date(filename, latest_observed_date):
         return mtime
     return latest_observed_date
 
-def check_latest_update(config_filename, config):
+def check_latest_update(config_filename, config, cm_timestamp = None):
     latest_update = get_latest_date(config_filename, None)
+
+    # Work the harmony concept map into dependency check
+    if cm_timestamp is not None and latest_update < cm_timestamp:
+        latest_update = cm_timestamp
 
     for table in config['dataset']:
         if 'data_dictionary' in config['dataset'][table]:
@@ -70,6 +74,7 @@ def check_latest_update(config_filename, config):
     for wst in Path(config['projector_lib']).glob("*.wstl"):
         latest_update = get_latest_date(wst, latest_update)
     
+    print(f"The latest: {latest_update}")
     return latest_update
 
 def example_config(writer, auth_type=None):
@@ -201,10 +206,12 @@ for each of the auth types currently supported.\n"""
     for config_file in args.config:
         config = safe_load(config_file)
         require_official = config.get('require_official')
+
+        cm_timestamp = None
         # Build ConceptMaps if provided
         for dataset in config['dataset'].keys():
             if 'code_harmonization' in config['dataset'][dataset]:
-                BuildConceptMap(config['dataset'][dataset]['code_harmonization'], curies=config.get('curies'))
+                cm_timestamp = BuildConceptMap(config['dataset'][dataset]['code_harmonization'], curies=config.get('curies'))
 
         # Work out the destination for the Whistle input
         output_directory = Path(args.intermediate)
@@ -213,7 +220,7 @@ for each of the auth types currently supported.\n"""
 
         dataset = DataCsvToObject(config)
 
-        input_file_ts = check_latest_update(config_file.name, config)
+        input_file_ts = check_latest_update(config_file.name, config, cm_timestamp)
 
         if args.force or not whistle_input.exists() or input_file_ts > whistle_input.stat().st_mtime:
             with whistle_input.open(mode='wt') as f:
