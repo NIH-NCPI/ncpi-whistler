@@ -7,6 +7,7 @@ from collections import defaultdict
 from ncpi_fhir_client.fhir_client import FhirClient
 
 import datetime
+import time
 import concurrent.futures
 from threading import Lock, current_thread, main_thread
 import pdb
@@ -29,7 +30,9 @@ resource_order = [
     'Observation',
     'Condition',
     'ResearchSubject',
-    'ResearchStudy'
+    'ResearchStudy',
+    'DocumentReference',
+    'Task'
 ]
 
 class ResourceDeleter:
@@ -104,7 +107,10 @@ class ResourceDeleter:
 
     def retry_purge(self):
         print("Retrying conflicted resources")
-        for i in range(5, 0):
+        for i in range(0, 5):
+            # Give the database some time to catch up
+            print(f"#{i} - Sleeping a bit before retrying the deletions")
+            time.sleep(300)
             if len(self.delayed_deletes) > 0:
                 self.ids_to_delete = self.delayed_deletes
                 self.delayed_deletes = defaultdict(list)
@@ -133,6 +139,7 @@ class ResourceDeleter:
                 entry.result()
             print(f"Thread queue ({len(self.del_queue)}) completed in {(datetime.datetime.now() - start_time).seconds}s")
             self.del_queue = []
+
 
     def add_job_to_queue(self, resource, id):
         if self.thread_executor is not None:
