@@ -5,8 +5,11 @@ from wstlr.hostfile import load_hosts_file
 from collections import defaultdict
 
 from ncpi_fhir_client.fhir_client import FhirClient
+from ncpi_fhir_client import default_resources
+from copy import deepcopy
 
 import datetime
+import time
 import concurrent.futures
 from threading import Lock, current_thread, main_thread
 import pdb
@@ -28,8 +31,10 @@ resource_order = [
     'Encounter',
     'Observation',
     'Condition',
+    'ResearchStudy',
     'ResearchSubject',
-    'ResearchStudy'
+    'DocumentReference',
+    'Task'
 ]
 
 class ResourceDeleter:
@@ -57,21 +62,31 @@ class ResourceDeleter:
         return self.studyids.load_from_file(filename)
 
     def delete_resources_by_tag(self, study_id, resource_list=None):
-        for resource in resource_order[::-1]:
+        if resource_list is None or 'ALL' in resource_list:
+            resource_list = default_resources(self.client)
+
+        # First, delete anything that isn't in the order...assuming those are less likely to 
+        # have dependant resources point back to them:
+
+        ordered_resources = default_resources(self.client, ignore_resources=resource_order + ['Bundle']) +  resource_order[::-1]
+
+        for resource in ordered_resources:
             if resource in resource_list or 'ALL' in resource_list:
-                print(f"Purging All IDS from {study_id}:{resource}")
-                #pdb.set_trace()
                 qry = f"{resource}?_tag={study_id}&_elements=id"
 
                 response = self.client.get(qry)    
                 ids = []
+                if len(response.entries) > 0:
+                    print(f"Purging All IDS from {study_id}:{resource}")
+
                 for entry in response.entries:
                     # If it's an empty bundle, then there won't be a resource
                     if 'resource' in entry:
                         self.add_job_to_queue(resource, entry['resource']['id'])
                 self.launch_threads()
 
-                print(f"{resource} : {response.response['total']}")            
+                if response.response['total'] > 0:
+                    print(f"{resource} : {response.response['total']}")            
 
     def delete_resources(self, study_id, resource_list=None):
         global resource_order
@@ -83,8 +98,14 @@ class ResourceDeleter:
 
             resource_list = self.studyids.list_resource_types(study_id)
 
-        #pdb.set_trace()
-        for resource in resource_order[::-1]:
+        ordered_resources = []
+        for resource in resource_list:
+            if resource not in resource_order:
+                ordered_resources.append(resource)
+
+        ordered_resources += resource_order[::-1]
+
+        for resource in ordered_resources:
             if resource in resource_list:
                 ids = self.studyids.get_ids(study_id, resource)[::-1]
                 print(f"Deleting {len(ids)} from {resource}")
@@ -104,13 +125,19 @@ class ResourceDeleter:
 
     def retry_purge(self):
         print("Retrying conflicted resources")
-        for i in range(5, 0):
+        for i in range(0, 5):
+            # Give the database some time to catch up
+            print(f"#{i} - Sleeping a bit before retrying the deletions")
+            time.sleep(60)
             if len(self.delayed_deletes) > 0:
                 self.ids_to_delete = self.delayed_deletes
                 self.delayed_deletes = defaultdict(list)
+                ordered_resources = []
+                ordered_resources = default_resources(self.client, ignore_resources=resource_order + ['Bundle'])
 
+                ordered_resources += resource_order[::-1]
 
-                for resource in resource_order[::-1]:
+                for resource in ordered_resources:
                     if resource in self.ids_to_delete:
                         for id in self.ids_to_delete[resource]:
                             self.add_job_to_queue(resource, id)
@@ -133,6 +160,7 @@ class ResourceDeleter:
                 entry.result()
             print(f"Thread queue ({len(self.del_queue)}) completed in {(datetime.datetime.now() - start_time).seconds}s")
             self.del_queue = []
+
 
     def add_job_to_queue(self, resource, id):
         if self.thread_executor is not None:
