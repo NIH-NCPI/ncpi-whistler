@@ -31,17 +31,23 @@ def ParseBundle(bundle_file, resource_consumers):
     resources to each resource_consumers. """
 
     content = json.load(bundle_file)
+    if content is not None:
 
-    # We expect there to be at least one key that points
-    # to an array of resource records. If there are more
-    # that is fine. Each will be processed independently
-    # and the key will be passed as the "resource_group"
-    for resource_group in content.keys():
-        for resource in content[resource_group]:
-            #print(resource)
+        # We expect there to be at least one key that points
+        # to an array of resource records. If there are more
+        # that is fine. Each will be processed independently
+        # and the key will be passed as the "resource_group"
+        for resource_group in content.keys():
+            for resource in content[resource_group]:
+                #print(resource)
 
-            for consumer in resource_consumers:
-                consumer(resource_group, resource)
+                for consumer in resource_consumers:
+                    consumer(resource_group, resource)
+        return content.keys()
+
+    else:
+        print(f"The file, {bundle_file.name}, appears to be empty.")
+        sys.exit(1)
 
 class RequestType(Enum):
     PUT = 1
