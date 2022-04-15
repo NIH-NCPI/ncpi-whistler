@@ -6,6 +6,8 @@ from pathlib import Path
 from wstlr.conceptmap import BuildConceptMap
 from wstlr.extractor import DataCsvToObject
 from wstlr.inspector import ResourceInspector
+from wstlr.module_summary import ModuleSummary
+
 from  subprocess import run
 import json
 from ncpi_fhir_client.fhir_client import FhirClient
@@ -240,8 +242,10 @@ for each of the auth types currently supported.\n"""
             # We really only want to run this when we generate a new Whistle file,
             # so we'll do this work separately from the other consumers
             resource_inspector = ResourceInspector(require_official=require_official)
+            resource_summary = ModuleSummary()
             with open(result_file, 'rt') as  f:
-                ParseBundle(f, [resource_inspector.check_identifier])            
+                ParseBundle(f, [resource_inspector.check_identifier, resource_summary.summary])            
+            resource_summary.print_summary()
         else:
             result_file = str(whistle_output)
             print(f"Skipping whistle since none of the input has changed")

@@ -14,6 +14,7 @@ import pdb
 from pathlib import Path
 import json
 import sys
+from wstlr.module_summary import ModuleSummary
 from argparse import ArgumentParser, FileType
 from wstlr.bundle import Bundle, ParseBundle, RequestType
 
@@ -40,7 +41,6 @@ def CheckForUse(identifiers):
     return official_count == 1
 
 class ResourceInspector:
-
     def __init__(self, require_official):
         # ResourceType => Set(ids)
         self.identifiers = defaultdict(set)
@@ -96,6 +96,8 @@ def exec():
 
     args = parser.parse_args(sys.argv[1:])
     resource_inspector = ResourceInspector(require_official=args.require_official)
-
+    summary = ModuleSummary()
     for result_file in args.file:
-        ParseBundle(result_file, [resource_inspector.check_identifier])
+        modules = set(ParseBundle(result_file, [resource_inspector.check_identifier, summary.summary]))
+
+    summary.print_summary()
