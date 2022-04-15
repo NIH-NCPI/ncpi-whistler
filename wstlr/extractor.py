@@ -268,47 +268,52 @@ def DataCsvToObject(config):
         "harmony": [],
     }
 
+    active_tables = config.get('active_tables')
+    if active_tables is None:
+        active_tables['ALL'] = True
+
     dd_codesystems = {}
     harmony_files = set()
 
     for category in config['dataset'].keys():
-        data_chunk = []
-        aggregators = {}
-        agg_splitter = None
-        if 'aggregators' in config['dataset'][category]:
-            agg_splitter = config['dataset'][category].get('aggregator-splitter')
-            aggregators = BuildAggregators(config['dataset'][category]['aggregators'])
-            #print(aggregators)
-        code_details = {}
-        if 'code_harmonization' in config['dataset'][category]:
-            with open(config['dataset'][category]['code_harmonization'], 'rt') as f:
-                reader = csv.DictReader(f, delimiter=',', quotechar='"')
+        if active_tables.get('ALL') == True or active_tables.get(category):
+            data_chunk = []
+            aggregators = {}
+            agg_splitter = None
+            if 'aggregators' in config['dataset'][category]:
+                agg_splitter = config['dataset'][category].get('aggregator-splitter')
+                aggregators = BuildAggregators(config['dataset'][category]['aggregators'])
+                #print(aggregators)
+            code_details = {}
+            if 'code_harmonization' in config['dataset'][category]:
+                with open(config['dataset'][category]['code_harmonization'], 'rt') as f:
+                    reader = csv.DictReader(f, delimiter=',', quotechar='"')
 
-                for row in reader:
-                    code_details[row['local code']] = row['display']
+                    for row in reader:
+                        code_details[row['local code']] = row['display']
 
-        # For some datasets, there may be an set of artificial question "names" or values 
-        # which won't appear in the actual data. We'll need to scan this for the "description" 
-        # to identify those artificial questions and assign those to the final output instead
-        # of the long, descriptive name
-        dd_based_varnames = {}
-        if 'data_dictionary' in config['dataset'][category]:
-            with open(config['dataset'][category]['data_dictionary']['filename'], encoding='utf-8-sig') as f:
-                dd = ObjectifyDD(config['study_id'], category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'))
-                dataset['study']['data-dictionary'].append(dd)
-                dd_based_varnames = build_varname_lookup(dd)
+            # For some datasets, there may be an set of artificial question "names" or values 
+            # which won't appear in the actual data. We'll need to scan this for the "description" 
+            # to identify those artificial questions and assign those to the final output instead
+            # of the long, descriptive name
+            dd_based_varnames = {}
+            if 'data_dictionary' in config['dataset'][category]:
+                with open(config['dataset'][category]['data_dictionary']['filename'], encoding='utf-8-sig') as f:
+                    dd = ObjectifyDD(config['study_id'], category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'))
+                    dataset['study']['data-dictionary'].append(dd)
+                    dd_based_varnames = build_varname_lookup(dd)
 
-        if 'code_harmonization' in config['dataset'][category]:
-            harmony_file = config['dataset'][category]['code_harmonization']
-            if harmony_file not in harmony_files:
-                harmony_files.add(harmony_file)
-                dataset['harmony'].append(ObjectifyHarmony(harmony_file, curies=config.get('curies')))
+            if 'code_harmonization' in config['dataset'][category]:
+                harmony_file = config['dataset'][category]['code_harmonization']
+                if harmony_file not in harmony_files:
+                    harmony_files.add(harmony_file)
+                    dataset['harmony'].append(ObjectifyHarmony(harmony_file, curies=config.get('curies')))
 
 
-        with open(config['dataset'][category]['filename'], encoding='utf-8-sig', errors='ignore') as f:
-            data_chunk = ObjectifyCSV(f, aggregators, agg_splitter, code_details, dd_based_varnames)
+            with open(config['dataset'][category]['filename'], encoding='utf-8-sig', errors='ignore') as f:
+                data_chunk = ObjectifyCSV(f, aggregators, agg_splitter, code_details, dd_based_varnames)
 
-        dataset[category] = data_chunk
+            dataset[category] = data_chunk
 
     for key in dd_codesystems:
         dataset['code-systems'].append(dd_codesystems[key].as_obj())
