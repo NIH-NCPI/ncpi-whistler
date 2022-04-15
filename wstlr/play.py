@@ -144,7 +144,6 @@ for each of the auth types currently supported.\n"""
         help="Indicate that submissions to the FHIR server are just validation calls and not for proper loading. Anything that fails validation result in a termination."
     )
     parser.add_argument(
-        "-m",
         "--max-validations",
         type=int,
         default=1000,
@@ -199,6 +198,20 @@ for each of the auth types currently supported.\n"""
         default=5000,
         type=int,
         help="Number of records to buffer before launching threaded loads. Only matters when running with async=true"
+    )
+    parser.add_argument(
+        "-m",
+        "--module",
+        type=str,
+        action='append',
+        help="When loading resources into FHIR, this indicates the name of a module to be loaded. A module is a 'root' level entry in the whistle output object. --module may be specified multiple times to load multiple modules."
+    )
+    parser.add_argument(
+        "-r", 
+        "--resource",
+        type=str,
+        action='append',
+        help="When loading resources into FHIR, this indicates a resourceType that will be loaded. --resource may be specified more than once."
     )
     args = parser.parse_args(sys.argv[1:])
 
@@ -257,7 +270,7 @@ for each of the auth types currently supported.\n"""
             fhir_client = FhirClient(host_config[args.env], idcache=cache_remote_ids)
 
             #cache = IdCache(config['study_id'], fhir_client.target_service_url)
-            loader = ResourceLoader(config['identifier_prefix'], fhir_client, study_id=config['study_id'], idcache=cache_remote_ids, threaded=args.threaded)
+            loader = ResourceLoader(config['identifier_prefix'], fhir_client, study_id=config['study_id'], resource_list=args.resource, module_list=args.module, idcache=cache_remote_ids, threaded=args.threaded)
             if args.threaded:
                 print("Threading enabled")
                 loader.max_queue_size = args.load_buffer_size
@@ -295,6 +308,7 @@ for each of the auth types currently supported.\n"""
 
             # Launch anything that was lingering in the queue
             loader.cleanup_threads()
+            loader.print_summary()
             loader.save_fails(output_directory / f"invalid-references.json")
             loader.save_study_ids(output_directory / f"study-ids.json")
 

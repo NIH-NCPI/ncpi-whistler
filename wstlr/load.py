@@ -94,11 +94,18 @@ class ResourceLoader:
     _max_validations_per_resource = -1
 
     _resource_buffer = []
-    def __init__(self, identifier_prefix, fhir_client, study_id, idcache=None, threaded=False, thread_count=10):
+    def __init__(self, identifier_prefix, fhir_client, study_id, resource_list=None, module_list=None, idcache=None, threaded=False, thread_count=10):
         self.identifier_prefix = identifier_prefix
         self.identifier_rx = re.compile(identifier_prefix)
         self.client = fhir_client
         self.idcache = idcache
+
+        if module_list is None:
+            module_list = []
+        if resource_list is None:
+            resource_list = []
+        self.module_list = set(module_list)
+        self.resource_list = set(resource_list)
 
         self.study_id = study_id
 
@@ -122,6 +129,9 @@ class ResourceLoader:
         self.max_queue_size = 500
         self.load_queue = []
         self.thread_executor = None
+
+        self.successful_loads = defaultdict(lambda: defaultdict(int))
+        self.resource_summary = defaultdict(int)
 
         self.records_loaded = 0
         if threaded:
@@ -180,7 +190,7 @@ class ResourceLoader:
             }
         
         problems = []
-        for resource in self.delayed_loading:
+        for group_name, resource in self.delayed_loading:
             try:
                 build_references(resource, self.idcache)
             except InvalidReference as e:
@@ -204,61 +214,60 @@ class ResourceLoader:
 
             self.thread_executor.shutdown(wait=True)
 
-    def add_job_to_queue(self, resource):
+    def add_job_to_queue(self, group_name, resource):
         # Run immediately if there is no executor or if it's one of the ontontology types
         if resource['resourceType'] not in ['CodeSystem', 'ValueSet'] and self.thread_executor is not None:
-            self.load_queue.append(self.thread_executor.submit(self.load_resource, resource))
+            self.load_queue.append(self.thread_executor.submit(self.load_resource, group_name, resource))
 
             if self.max_queue_size <= len(self.load_queue):
                 self.launch_threads()
         else:
-            self.load_resource(resource)
+            self.load_resource(group_name, resource)
 
 
     def consume_load(self, group_name, resource):
-        try:
-            #pdb.set_trace()
+        if len(self.module_list) == 0 or group_name in self.module_list:
+            if len(self.resource_list) == 0 or resource['resourceType'] in self.resource_list:
+                try:
 
-            with load_lock:
-                if 'resourceType' not in resource:
-                    print(pformat(resource))
-                if resource['resourceType'] == 'ObservationDefinition':
-                    #pdb.set_trace()
-                    pass
-                build_references(resource, self.idcache, parent_key=None)
-            
-            self.add_job_to_queue(resource)
+                    with load_lock:
+                        if 'resourceType' not in resource:
+                            print(pformat(resource))
 
-        except InvalidReference as e:
-            self.delayed_loading.append(resource)
+                        build_references(resource, self.idcache, parent_key=None)
+
+                    self.add_job_to_queue(group_name, resource)
+
+                except InvalidReference as e:
+                    self.delayed_loading.append((group_name, resource))
 
     def retry_loading(self, resources=None):
         if resources is None:
             resources = self.delayed_loading
 
         delayed_again = []
-        for resource in resources:
+        for group_name, resource in resources:
             try:
                 with load_lock:
                     if resource['resourceType'] == 'ObservationDefinition':
                         #pdb.set_trace()
                         pass
                     build_references(resource, self.idcache, parent_key=None)
-                self.add_job_to_queue(resource)
+                self.add_job_to_queue(group_name, resource)
 
             except InvalidReference as e:
                 with load_lock:
                     #print(e.message())
-                    delayed_again.append(resource)
+                    delayed_again.append((group_name, resource))
                 
         with load_lock:
             self.delayed_loading = delayed_again
 
     def consume_validate(self, group_name, resource):
         """Do we even care to use async with validate? I'm skipping it for now"""
-        self.load_resource(resource, validate_only=True)
+        self.load_resource(group_name, resource, validate_only=True)
 
-    def load_resource(self, resource, validate_only=False):
+    def load_resource(self, group_name, resource, validate_only=False):
         cache_id = False
         resource_identifier = None
         system = None
@@ -328,6 +337,8 @@ class ResourceLoader:
                                         identifier_type=identifier_type,
                                         validate_only=validate_only)
         if result['status_code'] < 300:
+            self.successful_loads[group_name][resource_type] += 1
+            self.resource_summary[resource_type] += 1
             #pdb.set_trace()
             self.studyids.add_id(resource_type, result['response']['id'])
 
@@ -363,6 +374,18 @@ class ResourceLoader:
         return result
 
 
+    def print_summary(self):
+        print("Load Summary\n")
+        print("Module Name                      Resource Type            #         % of Total")
+        print("-------------------------------  ------------------------ --------- ----------")
+        for modulename in sorted(self.successful_loads.keys()):
+            for resourcetype in sorted(self.successful_loads[modulename].keys()):
+                observed = self.successful_loads[modulename][resourcetype]
+                total = self.resource_summary[resourcetype]
+                perc = f"{(100.0 * observed)/total:4.2f}" 
+                print(f"{modulename:<32} {resourcetype:<24} {self.successful_loads[modulename][resourcetype]:<9} {perc:>7}")
+
+
 def exec():
     host_config_filename = Path("fhir_hosts")
 
@@ -374,6 +397,7 @@ def exec():
     parser = ArgumentParser(
         description="Load whistle output file into selected FHIR server."
     )
+    pdb.set_trace()
     parser.add_argument(
         "-e",
         "--env",
@@ -387,13 +411,26 @@ def exec():
         help="Indicate that submissions to the FHIR server are just validation calls and not for proper loading. Anything that fails validation result in a termination."
     )
     parser.add_argument(
-        "-m",
+        "-mv",
         "--max-validations",
         type=int,
         default=1000,
         help="If validating instead of loading, this determines how many of a given resource type will be validated. Values less than one means no limit to the number of resources validated."
     )
-
+    parser.add_argument(
+        "-m",
+        "--module",
+        type=str,
+        action='append',
+        help="When loading resources into FHIR, this indicates the name of a module to be loaded. A module is a 'root' level entry in the whistle output object. --module may be specified multiple times to load multiple modules."
+    )
+    parser.add_argument(
+        "-r", 
+        "--resource",
+        type=str,
+        action='append',
+        help="When loading resources into FHIR, this indicates a resourceType that will be loaded. --resource may be specified more than once."
+    )
     parser.add_argument(
         "-t",
         "--threaded", 
@@ -408,7 +445,6 @@ def exec():
         help="Number of records to buffer before launching threaded loads. Only matters when running with async=true"
     )    
     parser.add_argument(
-        "-r",
         "--require-official",
         type=bool,
         default=True
@@ -439,14 +475,16 @@ def exec():
         help="JSON output from Whistle to be inspected.",
     )
     args = parser.parse_args(sys.argv[1:])
-    
+
     if args.max_validations > 0:
         ResourceLoader._max_validations_per_resource = args.max_validations
     cache_remote_ids = RIdCache(study_id=args.study_id, valid_patterns=args.fhir_id_patterns)
     fhir_client = FhirClient(host_config[args.env], idcache=cache_remote_ids)
 
     #cache = IdCache(config['study_id'], fhir_client.target_service_url)
-    loader = ResourceLoader(args.identifier_prefix, fhir_client, study_id=args.study_id, idcache=cache_remote_ids, threaded=args.threaded)
+    print(args)
+    pdb.set_trace()
+    loader = ResourceLoader(args.identifier_prefix, fhir_client, resource_list=args.resource, module_list=args.module, study_id=args.study_id, idcache=cache_remote_ids, threaded=args.threaded)
 
     if args.threaded:
         print("Threading enabled")
@@ -477,6 +515,7 @@ def exec():
     # Launch anything that was lingering in the queue
     loader.cleanup_threads()
 
+    loader.print_summary()
     output_directory = Path(args.file.name).parent
     loader.save_fails(output_directory / f"invalid-references.json")
     loader.save_study_ids(output_directory / f"study-ids.json")
