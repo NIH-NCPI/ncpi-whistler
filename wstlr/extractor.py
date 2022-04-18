@@ -42,6 +42,67 @@ def clean_values(valuestring):
     if valuestring is None:
         return ""
     return re.sub(xcleaner, ';', valuestring.strip())
+def fix_fieldname(fieldname):
+    return fieldname.lower().replace(" ", "_").replace(")", "").replace("(", "").replace("/", "_")
+
+class GroupBy:
+    def __init__(self, config=None):
+        self.group_by = []
+        self.content = {}
+
+        if config is not None:
+            self.group_by=[fix_fieldname(x) for x in config.split(",")]
+        else:
+            self.content = []
+    
+    def parse(self, row):
+
+        current = self.content
+
+        if len(self.group_by) > 0:
+            key = ":".join([row[x] for x in self.group_by])
+
+            if key not in self.content:
+                self.content[key] = {
+                    "content": []
+                }
+                for var in self.group_by:
+                    self.content[key][var] = row[var]
+
+            current = self.content[key]['content']
+    
+        cur_row = {}
+        for var in row:
+            if var not in self.group_by:
+                cur_row[var] = row[var]
+        current.append(cur_row)
+
+    def collect(self):
+        """Return the objectified contents of the group_by variable(s)"""
+
+        results = []
+
+        if len(self.group_by) > 0:
+            for key in self.content.keys():
+                results.append(self.content[key])
+        else:
+            results = self.content
+        
+        return results
+
+        for col in self.group_by:
+            if row[col] not in current:
+                current[row[col]] = {
+                    col: row[col],
+                    "content": {}
+                }
+            current = self.content[row[col]]['content']
+        
+        for col in row.keys():
+            if col not in self.group_by:
+                current[col] = row[col]
+
+
 
 class DataDictionaryVariableCS:
     def __init__(self, study, table_name, varname, values):
@@ -187,7 +248,8 @@ def AggregateColumns(aggregators, colnames):
 
     return (standard_columns, aggregated_columns)
 
-def ObjectifyCSV(csv_file, aggregators={}, agg_splitter=None, code_details={}, varname_lkup={}):
+
+def ObjectifyCSV(csv_file, aggregators={}, grouper=None, agg_splitter=None, code_details={}, varname_lkup={}):
     """Transform columnar data into objects where each row becomes individual objects and columns become properties for those objects
     
     :param csv_file: File to be transformed. This should be an open file.
@@ -201,7 +263,7 @@ def ObjectifyCSV(csv_file, aggregators={}, agg_splitter=None, code_details={}, v
 
     #pdb.set_trace()
     reader = csv.DictReader(csv_file, delimiter=',', quotechar='"')
-    reader.fieldnames = [x.lower().replace(" ", "_").replace(")", "").replace("(", "").replace("/", "_") for x in reader.fieldnames]
+    reader.fieldnames = [fix_fieldname(x) for x in reader.fieldnames]
 
     # Standard columns will go straight as root properties of the current object
     # Aggregated columns will end up nested as properties of the varname "property"
@@ -239,10 +301,10 @@ def ObjectifyCSV(csv_file, aggregators={}, agg_splitter=None, code_details={}, v
         for col in standard_columns:
             if line[col] in code_details:
                 row[f"{col}_display"] = code_details[row[col]]
-            
-        data_chunk.append(row)
+        grouper.parse(row)
+        #data_chunk.append(row)
 
-    return data_chunk
+    return grouper.collect()
 
 def BuildAggregators(cfg_agg):
     aggregators = {}
@@ -284,6 +346,7 @@ def DataCsvToObject(config):
                 agg_splitter = config['dataset'][category].get('aggregator-splitter')
                 aggregators = BuildAggregators(config['dataset'][category]['aggregators'])
                 #print(aggregators)
+            
             code_details = {}
             if 'code_harmonization' in config['dataset'][category]:
                 with open(config['dataset'][category]['code_harmonization'], 'rt') as f:
@@ -309,9 +372,9 @@ def DataCsvToObject(config):
                     harmony_files.add(harmony_file)
                     dataset['harmony'].append(ObjectifyHarmony(harmony_file, curies=config.get('curies')))
 
-
+            grouper = GroupBy(config=config['dataset'][category].get('group_by'))
             with open(config['dataset'][category]['filename'], encoding='utf-8-sig', errors='ignore') as f:
-                data_chunk = ObjectifyCSV(f, aggregators, agg_splitter, code_details, dd_based_varnames)
+                data_chunk = ObjectifyCSV(f, aggregators, grouper, agg_splitter, code_details, dd_based_varnames)
 
             dataset[category] = data_chunk
 
