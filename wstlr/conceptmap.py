@@ -352,6 +352,8 @@ def BuildConceptMap(csvfilename, curies):
     name_prefix =csvfilename.split("/")[-1].split(".")[0]
     outname = ".".join(csvfilename.split(".")[0:-1]) + ".json"
 
+    observed_mappings = set()
+
     # Skip this step if the json file is newer
     if (not Path(outname).exists()) or \
         (Path(csvfilename).stat().st_mtime > Path(outname).stat().st_mtime):
@@ -367,12 +369,23 @@ def BuildConceptMap(csvfilename, curies):
 
             rowcount = 0
             for row in reader:
-                rowcount += 1
                 if row.get('code system') is None:
                     row['code system'] = ""
-                mappings[row['local code system']][row['code system']].append(row)
-                if row['code system'].strip() != "":
-                    mappings[row['local code system']][""].append(row)
+
+                key = ".".join([
+                    row['local code system'],
+                    row['local code'],
+                    row['code system'],
+                    row['code']])
+
+                rowcount += 1
+
+                if key not in observed_mappings:
+                    observed_mappings.add(key)
+
+                    mappings[row['local code system']][row['code system']].append(row)
+                    if row['code system'].strip() != "":
+                        mappings[row['local code system']][""].append(row)
             
             concept_map = {
                 "id": name_prefix,
@@ -382,6 +395,7 @@ def BuildConceptMap(csvfilename, curies):
             }
 
             for source in mappings.keys():
+                
                 for target in mappings[source].keys():
                     the_target = target
 
@@ -402,6 +416,7 @@ def BuildConceptMap(csvfilename, curies):
                     if the_target in curies:
                         curie = curies[the_target] + ":"
 
+                    observed_codes = set()
                     prev_code = None
                     for elm in mappings[source][target]:
                         local_code = elm['local code']

@@ -377,7 +377,6 @@ def DataCsvToObject(config):
             grouper = GroupBy(config=config['dataset'][category].get('group_by'))
             with open(config['dataset'][category]['filename'], encoding='utf-8-sig', errors='ignore') as f:
                 data_chunk = ObjectifyCSV(f, aggregators, grouper, agg_splitter, code_details, dd_based_varnames)
-
             dataset[category] = data_chunk
         else:
             print(f"Skipping in-active table, {category}")
