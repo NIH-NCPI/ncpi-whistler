@@ -70,7 +70,9 @@ def check_latest_update(config_filename, config, cm_timestamp = None):
     for table in config['dataset']:
         if 'data_dictionary' in config['dataset'][table]:
             latest_update = get_latest_date(config['dataset'][table]['data_dictionary']['filename'], latest_update)
-        latest_update = get_latest_date(config['dataset'][table]['filename'], latest_update)
+
+        for filename in config['dataset'][table]['filename'].split(","):
+            latest_update = get_latest_date(filename, latest_update)
 
     latest_update = get_latest_date(config['whistle_src'], latest_update)
     for wst in Path(config['projector_lib']).glob("*.wstl"):

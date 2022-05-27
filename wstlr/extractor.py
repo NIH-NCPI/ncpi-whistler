@@ -10,6 +10,7 @@ import re
 from collections import defaultdict
 from copy import deepcopy
 from wstlr.conceptmap import ObjectifyHarmony
+from wstlr.embedable import EmbedableTable
 import pdb
 
 system_base = "https://nih-ncpi.github.io/ncpi-fhir-ig"
@@ -337,6 +338,18 @@ def DataCsvToObject(config):
     dd_codesystems = {}
     harmony_files = set()
 
+    embedded = defaultdict(list)
+
+    for category in config['dataset'].keys():
+        embedable = config['dataset'][category].get('embed')
+
+        if embedable is not None:
+            embd = EmbedableTable(category, embedable['dataset'], embedable['colname'])
+            for filename in config['dataset'][category]['filename'].split(","):
+                embd.load_data(filename)
+            embedded[embd.target].append(embd)
+
+
     for category in config['dataset'].keys():
         data_chunk = []
         aggregators = {}
@@ -374,10 +387,20 @@ def DataCsvToObject(config):
                     dataset['harmony'].append(ObjectifyHarmony(harmony_file, curies=config.get('curies')))
 
         if active_tables.get('ALL') == True or active_tables.get(category):
-            grouper = GroupBy(config=config['dataset'][category].get('group_by'))
-            with open(config['dataset'][category]['filename'], encoding='utf-8-sig', errors='ignore') as f:
-                data_chunk = ObjectifyCSV(f, aggregators, grouper, agg_splitter, code_details, dd_based_varnames)
-            dataset[category] = data_chunk
+            if 'embed' not in config['dataset'][category]:
+                grouper = GroupBy(config=config['dataset'][category].get('group_by'))
+                file_list = [x.strip() for x in config['dataset'][category]['filename'].split(",")]
+
+                for filename in file_list:
+                    with open(filename, encoding='utf-8-sig', errors='ignore') as f:
+                        data_chunk = ObjectifyCSV(f, aggregators, grouper, agg_splitter, code_details, dd_based_varnames)
+
+                        if category in embedded:
+                            for emb in embedded[category]:
+                                for row in data_chunk:
+                                    row[emb.table_name] = emb.get_rows(row[emb.join_col])
+
+                    dataset[category] = data_chunk
         else:
             print(f"Skipping in-active table, {category}")
     for key in dd_codesystems:
@@ -390,7 +413,7 @@ def build_varname_lookup(dd):
         if var['desc'].strip() != "" and var['desc'] != var['varname']:
             lookup[var['desc']] = var['varname']
         for value in var['values']:
-            #pdb.set_trace()
+
             code = value['code']
             desc = value['description']
 
