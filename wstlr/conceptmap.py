@@ -347,7 +347,7 @@ class ConceptMap:
 
         return vs
 
-def BuildConceptMap(csvfilename, curies):
+def BuildConceptMap(csvfilename, curies, codesystems=[]):
     # We'll assume that we only want to filename with any path/dot information
     name_prefix =csvfilename.split("/")[-1].split(".")[0]
     outname = ".".join(csvfilename.split(".")[0:-1]) + ".json"
@@ -393,6 +393,7 @@ def BuildConceptMap(csvfilename, curies):
                 "version": "v1",
                 "group": []
             }
+
 
             for source in mappings.keys():
                 
@@ -443,7 +444,30 @@ def BuildConceptMap(csvfilename, curies):
                             })
 
                     concept_map['group'].append(element)
-            
+
+            for cs in codesystems:
+                # Table CS don't have a varname. Those are the ones we want
+                if 'varname' not in cs:
+                    element = {
+                        "source": cs['table_name'],
+                        "target": "DD-Table-Codes",
+                        "element": []
+                    }
+
+                    for entry in cs['values']:
+                        element['element'].append({
+                                "code": entry['code'],
+                                "display": entry['description'],
+                                "target": [{
+                                    "code": entry['code'],
+                                    "display": entry['description'],
+                                    "equivalence": 'equivalent'
+                            }]
+                        })
+
+                    concept_map['group'].append(element)
+
+            print(f"Writing Harmony ConceptMap: {outname}")
             with open(outname, mode='wt') as f:
                 f.write(json.dumps(concept_map, indent=2))
     return Path(outname).stat().st_mtime

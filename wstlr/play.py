@@ -224,11 +224,6 @@ for each of the auth types currently supported.\n"""
         config = safe_load(config_file)
         require_official = config.get('require_official')
 
-        cm_timestamp = None
-        # Build ConceptMaps if provided
-        for dataset in config['dataset'].keys():
-            if 'code_harmonization' in config['dataset'][dataset]:
-                cm_timestamp = BuildConceptMap(config['dataset'][dataset]['code_harmonization'], curies=config.get('curies'))
 
         # Work out the destination for the Whistle input
         output_directory = Path(args.intermediate)
@@ -236,6 +231,13 @@ for each of the auth types currently supported.\n"""
         whistle_input = output_directory / f"{config['output_filename']}.json"
 
         dataset = DataCsvToObject(config)
+
+        cm_timestamp = None
+        # Build ConceptMaps if provided
+        for ds in config['dataset'].keys():
+            if 'code_harmonization' in config['dataset'][ds]:
+                cm_timestamp = BuildConceptMap(config['dataset'][ds]['code_harmonization'], curies=config.get('curies'), codesystems=dataset['code-systems'])
+
 
         input_file_ts = check_latest_update(config_file.name, config, cm_timestamp)
 
