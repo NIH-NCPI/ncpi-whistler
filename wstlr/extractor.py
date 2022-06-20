@@ -161,7 +161,7 @@ class DataDictionaryVariableCS:
             })
         return values
 
-def ObjectifyDD(study_id, table_name, dd_file, dd_codesystems, colnames=None): 
+def ObjectifyDD(study_id, table_name, dd_file, dd_codesystems, colnames=None, delimiter=","): 
     """DDs are treated differently. Rather than an array of objects, it's one object with select columns as properties
     
     Values are aggregated into key/value objects where the value is the key and the meaning is the value
@@ -174,7 +174,7 @@ def ObjectifyDD(study_id, table_name, dd_file, dd_codesystems, colnames=None):
         "table_name": table_name,
         "variables": []
     }
-    reader = csv.DictReader(dd_file, delimiter=',', quotechar='"')
+    reader = csv.DictReader(dd_file, delimiter=delimiter, quotechar='"')
     reader.fieldnames = [x.lower() for x in reader.fieldnames]
     #pdb.set_trace()
     table_cs_values = []
@@ -250,7 +250,7 @@ def AggregateColumns(aggregators, colnames):
     return (standard_columns, aggregated_columns)
 
 
-def ObjectifyCSV(csv_file, aggregators={}, grouper=None, agg_splitter=None, code_details={}, varname_lkup={}):
+def ObjectifyCSV(csv_file, aggregators={}, grouper=None, agg_splitter=None, code_details={}, varname_lkup={}, delimiter=","):
     """Transform columnar data into objects where each row becomes individual objects and columns become properties for those objects
     
     :param csv_file: File to be transformed. This should be an open file.
@@ -263,7 +263,7 @@ def ObjectifyCSV(csv_file, aggregators={}, grouper=None, agg_splitter=None, code
     data_chunk = []
 
     #pdb.set_trace()
-    reader = csv.DictReader(csv_file, delimiter=',', quotechar='"')
+    reader = csv.DictReader(csv_file, delimiter=delimiter, quotechar='"')
     reader.fieldnames = [fix_fieldname(x) for x in reader.fieldnames]
 
     # Standard columns will go straight as root properties of the current object
@@ -331,6 +331,9 @@ def DataCsvToObject(config):
         "harmony": [],
     }
 
+    if 'consent_group' in config:
+        dataset['study']['consent_group'] = config['consent_group']
+
     active_tables = config.get('active_tables')
     if active_tables is None:
         active_tables['ALL'] = True
@@ -373,8 +376,13 @@ def DataCsvToObject(config):
         # of the long, descriptive name
         dd_based_varnames = {}
         if 'data_dictionary' in config['dataset'][category]:
-            with open(config['dataset'][category]['data_dictionary']['filename'], encoding='utf-8-sig') as f:
-                dd = ObjectifyDD(config['study_id'], category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'))
+            print(config['dataset'][category]['data_dictionary']['filename'])
+            with open(config['dataset'][category]['data_dictionary']['filename'], 'rt', encoding='utf-8-sig') as f:
+                delimiter = ","
+                if 'delimiter' in config['dataset'][category]['data_dictionary']:
+                    delimiter = config['dataset'][category]['data_dictionary']['delimiter']
+
+                dd = ObjectifyDD(config['study_id'], category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'), delimiter=delimiter)
                 if active_tables.get('ALL') == True or active_tables.get("data-dictionary"):
                     dataset['study']['data-dictionary'].append(dd)
                 dd_based_varnames = build_varname_lookup(dd)
@@ -393,7 +401,11 @@ def DataCsvToObject(config):
 
                 for filename in file_list:
                     with open(filename, encoding='utf-8-sig', errors='ignore') as f:
-                        data_chunk = ObjectifyCSV(f, aggregators, grouper, agg_splitter, code_details, dd_based_varnames)
+                        delimiter = ","
+                        if 'delimiter' in config['dataset'][category]:
+                            delimiter = config['dataset'][category]['delimiter']
+
+                        data_chunk = ObjectifyCSV(f, aggregators, grouper, agg_splitter, code_details, dd_based_varnames, delimiter=delimiter)
 
                         if category in embedded:
                             for emb in embedded[category]:
