@@ -331,6 +331,9 @@ def DataCsvToObject(config):
         "harmony": [],
     }
 
+    if 'study_sponsor' in config:
+        dataset['study']['sponsor'] = config['study_sponsor']
+
     if 'consent_group' in config:
         dataset['study']['consent_group'] = config['consent_group']
 
