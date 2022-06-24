@@ -24,6 +24,7 @@ resource_order = [
     'ValueSet',
     'ObservationDefinition', 
     'ActivityDefinition',
+    'Organization',
     'Patient',
     'Group',
     'Specimen',
@@ -216,7 +217,7 @@ def exec(args=None):
         "-s", 
         "--study-ids",
         type=FileType('rt'),
-        default=open("output/whistle-output/study-ids.json", 'rt'),
+        #default=open("output/whistle-output/study-ids.json", 'rt'),
         help="Name of the study IDs JSON file to pull IDs from"
     )
     parser.add_argument(
@@ -255,19 +256,21 @@ def exec(args=None):
 
     args = parser.parse_args(sys.argv[1:])
 
-    args.study_ids.close()
-    args.study_ids = args.study_ids.name
+    if args.study_ids is not None:
+        args.study_ids.close()
+        args.study_ids = args.study_ids.name
 
     fhir_client = FhirClient(host_config[args.env])
     purgery = ResourceDeleter(fhir_client, threaded=args.threaded, max_queue_size=10000, thread_count=args.thread_count)
-    study_ids = purgery.load_studyids(args.study_ids)
+    if not args.delete_files_by_tag:
+        study_ids = purgery.load_studyids(args.study_ids)
 
     if args.study_name is None:
         print("The following study IDs are available for that server:")
         print("\t"+ "\n\t".join(study_ids))
         sys.exit(1)
     
-    if args.study_name not in study_ids:
+    if not args.delete_files_by_tag and args.study_name not in study_ids:
         print(f"Unable to find the study ID: {study_name} in the file, {args.study_ids} for the server {args.env}")
         sys.exit(1)
     
@@ -288,6 +291,14 @@ def exec(args=None):
     for resource in resource_order:
         qry = f"{resource}?_tag={args.study_name}&_summary=count"
         
-        response = fhir_client.get(qry)    
-        print(f"{resource} : {response.response['total']}")
+        response = fhir_client.get(qry, except_on_error=False)   
+        if 'issue' in response.response:
+            if "_summary argument is not supported" in response.response['issue'][0]['diagnostics']:
+                qry = f"{resource}?_tag={args.study_name}"
+                response = fhir_client.get(qry)
+                print(f"{resource} : {len(response.entries)}")
+        else:
+            print(f"{resource} : {response.response['total']}")
+
+        #pdb.set_trace() 
         
