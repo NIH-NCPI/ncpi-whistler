@@ -15,6 +15,7 @@ from pathlib import Path
 from argparse import ArgumentParser, FileType
 import json
 from copy import deepcopy
+from time import sleep
 
 from pathlib import Path
 from ncpi_fhir_client.fhir_client import FhirClient
@@ -291,7 +292,7 @@ class ResourceLoader:
             # For now, we'll just return a successful status code
             return {"status_code" : 200 }
         # We'll handle CodeSystems and ValueSets differently
-        if resource_type in ['CodeSystem', 'ValueSet']:
+        if resource_type in ['CodeSystem', 'ValueSet', 'ConceptMap']:
             result = self.client.load(resource_type, resource, validate_only)
             if result['status_code'] < 300:
                 (system, uniqid) =  self.get_identifier(result['response'])
@@ -330,12 +331,27 @@ class ResourceLoader:
             # If we couldn't find an id in the cache, we will pass the
             # identifier parameter in so that it will attempt to "get" 
             # a match and reuse the ID for a valid PUT overwrite
-            result = self.client.post(resource_type, 
-                                        resource, 
-                                        identifier=resource_identifier,
-                                        identifier_system=system,
-                                        identifier_type=identifier_type,
-                                        validate_only=validate_only)
+            retry_count = FhirClient.retry_post_count
+            while retry_count > 0:
+                retry_count -= 1
+                result = self.client.post(resource_type, 
+                                            resource, 
+                                            identifier=resource_identifier,
+                                            identifier_system=system,
+                                            identifier_type=identifier_type,
+                                            validate_only=validate_only)
+                if result['status_code'] < 300:
+                    retry_count = 0
+
+                elif result['status_code'] == 429:
+                    print(f"\t492 : {resource_type}:{resource_identifier}")
+                    if retry_count == 0:
+                        print("\tNot actually going to try again. So..ugh")
+                        pdb.set_trace()
+                    sleep(35)
+                else:
+                    print(f"\t{result['status_code']} : {result['request_url']}")
+                    sleep(5)
         if result['status_code'] < 300:
             self.successful_loads[group_name][resource_type] += 1
             self.resource_summary[resource_type] += 1
@@ -350,6 +366,9 @@ class ResourceLoader:
             skipped_errors = 0
             error_count = 0
             last_error = None
+            if 'issue' not in result['response']:
+                print(pformat(result['response']))
+                pdb.set_trace()
             for issue in result['response']['issue']:
                 if issue['severity'] == 'error':
                     if error_count < 5:
