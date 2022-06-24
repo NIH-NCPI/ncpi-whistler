@@ -187,6 +187,12 @@ for each of the auth types currently supported.\n"""
         type=FileType('rt'),
         help="Dataset YAML file with details required to run conversion.",
     )
+    parser.add_argument(
+        "--thread-count",
+        type=int,
+        default=10,
+        help="Number of threads to use when using threaded loads"
+    )
 
     parser.add_argument(
         "-t",
@@ -224,7 +230,6 @@ for each of the auth types currently supported.\n"""
         config = safe_load(config_file)
         require_official = config.get('require_official')
 
-
         # Work out the destination for the Whistle input
         output_directory = Path(args.intermediate)
         output_directory.mkdir(parents=True, exist_ok=True)
@@ -237,7 +242,6 @@ for each of the auth types currently supported.\n"""
         for ds in config['dataset'].keys():
             if 'code_harmonization' in config['dataset'][ds]:
                 cm_timestamp = BuildConceptMap(config['dataset'][ds]['code_harmonization'], curies=config.get('curies'), codesystems=dataset['code-systems'])
-
 
         input_file_ts = check_latest_update(config_file.name, config, cm_timestamp)
 
@@ -274,7 +278,7 @@ for each of the auth types currently supported.\n"""
             fhir_client = FhirClient(host_config[args.env], idcache=cache_remote_ids)
 
             #cache = IdCache(config['study_id'], fhir_client.target_service_url)
-            loader = ResourceLoader(config['identifier_prefix'], fhir_client, study_id=config['study_id'], resource_list=args.resource, module_list=args.module, idcache=cache_remote_ids, threaded=args.threaded)
+            loader = ResourceLoader(config['identifier_prefix'], fhir_client, study_id=config['study_id'], resource_list=args.resource, module_list=args.module, idcache=cache_remote_ids, threaded=args.threaded, thread_count=args.thread_count)
             if args.threaded:
                 print("Threading enabled")
                 loader.max_queue_size = args.load_buffer_size
