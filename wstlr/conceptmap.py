@@ -465,7 +465,8 @@ def BuildConceptMap(csvfilename, curies, codesystems=[]):
                             }]
                         })
 
-                    concept_map['group'].append(element)
+                    print("Skipping code system reflection mappings for now to speed up identifying issues with CMG Filenames")
+                    # concept_map['group'].append(element)
 
             print(f"Writing Harmony ConceptMap: {outname}")
             with open(outname, mode='wt') as f:
