@@ -450,7 +450,7 @@ def BuildConceptMap(csvfilename, curies, codesystems=[]):
                 if 'varname' not in cs:
                     element = {
                         "source": cs['table_name'],
-                        "target": "DD-Table-Codes",
+                        "target": cs['url'],
                         "element": []
                     }
 
@@ -465,8 +465,16 @@ def BuildConceptMap(csvfilename, curies, codesystems=[]):
                             }]
                         })
 
-                    print("Skipping code system reflection mappings for now to speed up identifying issues with CMG Filenames")
-                    # concept_map['group'].append(element)
+                    # After some work exploring alternatives, the solution is this: 
+                    #   * We must provide URLs for each code-system to be used by the whistle 
+                    #   * We must then make sure all references to these can be properly traced back to 
+                    #     those URLs and avoid creating URLs for anything that could ultimately make it 
+                    #     into those live harmony files. 
+                    #    
+                    #     That said, the harmony components themselves (conceptmap and it's source/target
+                    #     valuesets) will need URLs and it is safe to create those on the fly within whistle
+                    #     since those will no be referenced by anything else
+                    concept_map['group'].append(element)
 
             print(f"Writing Harmony ConceptMap: {outname}")
             with open(outname, mode='wt') as f:
