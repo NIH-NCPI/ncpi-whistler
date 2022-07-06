@@ -205,11 +205,12 @@ def ObjectifyDD(study_id, table_name, dd_file, dd_codesystems, colnames=None, de
             if values not in dd_codesystems:
                 dd_codesystems[values] = DataDictionaryVariableCS(study_id, table_name, varname, values)
             variable['values'] = dd_codesystems[values].values_for_json()
-            variable['values-details'] = {
-                'table-name': dd_codesystems[values].table_name,
-                'varname': dd_codesystems[values].varname
-            }
-            variable['values-url'] = dd_codesystems[values].url
+            if len(values) > 0:
+                variable['values-details'] = {
+                    'table-name': dd_codesystems[values].table_name,
+                    'varname': dd_codesystems[values].varname
+                }
+                variable['values-url'] = dd_codesystems[values].url
 
         dd_content['variables'].append(variable)
 
