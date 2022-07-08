@@ -106,14 +106,19 @@ class GroupBy:
 
 
 class DataDictionaryVariableCS:
-    def __init__(self, study, table_name, varname, values):
+    def __init__(self, study, consent_group, table_name, varname, values):
         self.varname = varname
 
+        self.study_component = study
+        if consent_group is not None:
+            self.study_component = f"{study}-{consent_group}"
+
         if varname is None:
-            self.url = f"{system_base}/CS/data-dictionary/{study}/{table_name}"
+            self.url = f"{system_base}/CS/data-dictionary/{self.study_component}/{table_name}"
         else:
-            self.url = f"{system_base}/CS/data-dictionary/{study}/{table_name}/{varname}"
+            self.url = f"{system_base}/CS/data-dictionary/{self.study_component}/{table_name}/{varname}"
         self.study = study
+        self.consent_group = consent_group
         self.table_name = table_name
         self.values = self.extract_values(values)
 
@@ -148,6 +153,8 @@ class DataDictionaryVariableCS:
         if self.varname is not None:
             obj['varname'] = self.varname
 
+        if self.consent_group is not None:
+            obj['consent_group'] = self.consent_group
         return obj
     
     def values_for_json(self):
@@ -161,7 +168,7 @@ class DataDictionaryVariableCS:
             })
         return values
 
-def ObjectifyDD(study_id, table_name, dd_file, dd_codesystems, colnames=None, delimiter=","): 
+def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, colnames=None, delimiter=","): 
     """DDs are treated differently. Rather than an array of objects, it's one object with select columns as properties
     
     Values are aggregated into key/value objects where the value is the key and the meaning is the value
@@ -203,7 +210,7 @@ def ObjectifyDD(study_id, table_name, dd_file, dd_codesystems, colnames=None, de
             
             values = clean_values(line[vname])
             if values not in dd_codesystems:
-                dd_codesystems[values] = DataDictionaryVariableCS(study_id, table_name, varname, values)
+                dd_codesystems[values] = DataDictionaryVariableCS(study_id, consent_group, table_name, varname, values)
             variable['values'] = dd_codesystems[values].values_for_json()
             if len(values) > 0:
                 variable['values-details'] = {
@@ -220,7 +227,7 @@ def ObjectifyDD(study_id, table_name, dd_file, dd_codesystems, colnames=None, de
         print(f"We have already processed the table, {table_name}")
     assert(table_name not in dd_codesystems)
     #pdb.set_trace()
-    dd_codesystems[table_name] = DataDictionaryVariableCS(study_id, table_name, None, ";".join(table_cs_values))
+    dd_codesystems[table_name] = DataDictionaryVariableCS(study_id, consent_group, table_name, None, ";".join(table_cs_values))
 
     return dd_content
 
@@ -337,6 +344,9 @@ def DataCsvToObject(config):
 
     if 'consent_group' in config:
         dataset['study']['consent_group'] = config['consent_group']
+        dataset['study']['consent_code'] = config['consent_group']['code']
+
+    consent_group = dataset['study'].get('consent_code')
 
     active_tables = config.get('active_tables')
     if active_tables is None:
@@ -386,7 +396,7 @@ def DataCsvToObject(config):
                 if 'delimiter' in config['dataset'][category]['data_dictionary']:
                     delimiter = config['dataset'][category]['data_dictionary']['delimiter']
 
-                dd = ObjectifyDD(config['study_id'], category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'), delimiter=delimiter)
+                dd = ObjectifyDD(config['study_id'], consent_group, category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'), delimiter=delimiter)
                 if active_tables.get('ALL') == True or active_tables.get("data-dictionary"):
                     dataset['study']['data-dictionary'].append(dd)
                 dd_based_varnames = build_varname_lookup(dd)
