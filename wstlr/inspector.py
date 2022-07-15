@@ -47,6 +47,11 @@ class ResourceInspector:
         self.require_official = require_official
 
     def check_identifier(self, group_name, resource):
+        if 'resourceType' not in resource:
+            print(resource)
+            print("No resourceType was found. As such, this is not a valid resource")
+            pdb.set_trace()
+
         ReportError('resourceType' not in resource, resource, "There is no resourceType specified in this resource")
 
         # CMs can only have one identifier, which has all sorts of downstream issues with the system...so, skipping them for
