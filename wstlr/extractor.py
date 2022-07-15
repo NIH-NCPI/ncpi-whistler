@@ -117,6 +117,7 @@ class DataDictionaryVariableCS:
             self.url = f"{system_base}/CS/data-dictionary/{self.study_component}/{table_name}"
         else:
             self.url = f"{system_base}/CS/data-dictionary/{self.study_component}/{table_name}/{varname}"
+
         self.study = study
         self.consent_group = consent_group
         self.table_name = table_name
@@ -229,7 +230,7 @@ def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, co
     #pdb.set_trace()
     dd_codesystems[table_name] = DataDictionaryVariableCS(study_id, consent_group, table_name, None, ";".join(table_cs_values))
 
-    return dd_content
+    return dd_content, table_cs_values
 
 def TestAggregatable(aggregators, varname):
     for rgx in aggregators.keys():
@@ -325,6 +326,7 @@ def BuildAggregators(cfg_agg):
     return aggregators
 
 def DataCsvToObject(config):
+
     dataset = {
         "study": {
             "id": config['study_id'],
@@ -333,7 +335,12 @@ def DataCsvToObject(config):
             "desc": config['study_desc'],
             "identifier-prefix": config['identifier_prefix'],
             "url": config['url'],
-            "data-dictionary": []
+            "data-dictionary": [
+                {
+                    "study": config['study_id'],
+                    "values": []
+                }
+            ]
         },
         "code-systems": [],
         "harmony": [],
@@ -348,6 +355,9 @@ def DataCsvToObject(config):
 
     consent_group = dataset['study'].get('consent_code')
 
+    dd_tablevar_cs = DataDictionaryVariableCS(config['study_id'], consent_group, "DataSet", None, "")
+    dataset['study']['data-dictionary'][0] = dd_tablevar_cs.as_obj()
+
     active_tables = config.get('active_tables')
     if active_tables is None:
         active_tables['ALL'] = True
@@ -360,12 +370,17 @@ def DataCsvToObject(config):
     for category in config['dataset'].keys():
         embedable = config['dataset'][category].get('embed')
 
+        filenames = config['dataset'][category]['filename']
+        if "," in filenames:
+            filenames = filenames.split(",")
+
+        dd_tablevar_cs.values[category] = ",".join([fn.split("/")[-1] for fn in filenames.split(",")])
+
         if embedable is not None:
             embd = EmbedableTable(category, embedable['dataset'], embedable['colname'])
             for filename in config['dataset'][category]['filename'].split(","):
                 embd.load_data(filename)
             embedded[embd.target].append(embd)
-
 
     for category in config['dataset'].keys():
         data_chunk = []
@@ -383,20 +398,37 @@ def DataCsvToObject(config):
 
                 for row in reader:
                     code_details[row['local code']] = row['display']
-
+        dataset['study']['data-dictionary'][0]['values'].append({
+            "varname": category,
+            "desc": ",".join([x.split("/")[-1] for x in config['dataset'][category]['filename'].split(",")]),
+            "type": "DD-Table",
+            "values": []
+        })
         # For some datasets, there may be an set of artificial question "names" or values 
         # which won't appear in the actual data. We'll need to scan this for the "description" 
         # to identify those artificial questions and assign those to the final output instead
         # of the long, descriptive name
         dd_based_varnames = {}
         if 'data_dictionary' in config['dataset'][category]:
+
+
             print(config['dataset'][category]['data_dictionary']['filename'])
             with open(config['dataset'][category]['data_dictionary']['filename'], 'rt', encoding='utf-8-sig') as f:
                 delimiter = ","
                 if 'delimiter' in config['dataset'][category]['data_dictionary']:
                     delimiter = config['dataset'][category]['data_dictionary']['delimiter']
 
-                dd = ObjectifyDD(config['study_id'], consent_group, category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'), delimiter=delimiter)
+                dd, cs_values = ObjectifyDD(config['study_id'], consent_group, category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'), delimiter=delimiter)
+                
+                # fill out the 'values' list for each of the vars
+                for cs_entry in cs_values:
+                    varname, desc = cs_entry.split("=")
+                    if desc.strip() == "":
+                        desc = varname
+                    dataset['study']['data-dictionary'][0]['values'][-1]['values'].append({
+                        "code": varname,
+                        "description": desc
+                    })
                 if active_tables.get('ALL') == True or active_tables.get("data-dictionary"):
                     dataset['study']['data-dictionary'].append(dd)
                 dd_based_varnames = build_varname_lookup(dd)
@@ -429,6 +461,9 @@ def DataCsvToObject(config):
                     dataset[category] = data_chunk
         else:
             print(f"Skipping in-active table, {category}")
+
+    # Add our main dataset CS to the list
+    dataset['code-systems'].append(dd_tablevar_cs.as_obj())
     for key in dd_codesystems:
         dataset['code-systems'].append(dd_codesystems[key].as_obj())
     return dataset
