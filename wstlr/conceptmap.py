@@ -444,16 +444,31 @@ def BuildConceptMap(csvfilename, curies, codesystems=[]):
                             })
 
                     concept_map['group'].append(element)
-
+                    
             for cs in codesystems:
-                # Table CS don't have a varname. Those are the ones we want
-                if 'varname' not in cs:
+                element = None
+                # In order to use variable categoricals in the harmony, 
+                # we'll need to build support for them. 
+                # 
+                # The only real gotcha here is that those target URLs
+                # have to be real URLs or the resulting output from the
+                # harmony calls will fail when submitting to a FHIR server
+                if 'varname' in cs:
+                    if len(cs['values']) > 0:
+                        element = {
+                            "source": cs["varname"],
+                            "target": cs["url"],
+                            "element": []
+                        }
+                        print(f"No clue why this isn't working!! {cs['varname']} => {cs['url']}")
+                else:
                     element = {
                         "source": cs['table_name'],
                         "target": cs['url'],
                         "element": []
                     }
 
+                if element is not None:
                     for entry in cs['values']:
                         element['element'].append({
                                 "code": entry['code'],
