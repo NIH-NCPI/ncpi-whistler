@@ -134,10 +134,15 @@ for each of the auth types currently supported.\n"""
         description="Transform a DbGAP dataset table dictionary into a FHIR CodeSystem, then transform that into ConceptMaps."
     )
     parser.add_argument(
-        "-e",
-        "--env",
+        "--host",
         choices=env_options,
         help=f"Remote configuration to be used to access the FHIR server. If no environment is provided, the system will stop after generating the whistle output (no validation, no loading)",
+    )
+    parser.add_argument(
+        "-e", 
+        "--env", 
+        choices=["dev", "qa", "prod"],
+        help=f"If your config has host details configured, you can use these short cuts to choose the appropriate host details. This is useful if you wish to run different configurations on the same command, but each has a different target host. "
     )
     parser.add_argument(
         "-v",
@@ -230,6 +235,17 @@ for each of the auth types currently supported.\n"""
         config = safe_load(config_file)
         require_official = config.get('require_official')
 
+        environment = config.get("env")
+        if args.env is not None:
+            if args.env not in environment:
+                print(f"The environment, {args.env}, is not configured in {config}.")
+                sys.exit(1)
+
+            if args.host is not None:
+                print(f"Specifying both a host and and environment doesn't make sense. Please use only --env or --host")
+                sys.exit(1)
+
+            args.host = environment[args.env]
         # Work out the destination for the Whistle input
         output_directory = Path(args.intermediate)
         output_directory.mkdir(parents=True, exist_ok=True)
@@ -271,11 +287,11 @@ for each of the auth types currently supported.\n"""
             result_file = str(whistle_output)
             print(f"Skipping whistle since none of the input has changed")
 
-        if args.env:
+        if args.host:  
             if args.max_validations > 0:
                 ResourceLoader._max_validations_per_resource = args.max_validations
             cache_remote_ids = RIdCache(study_id=config['study_id'], valid_patterns=config.get('fhir_id_patterns'))
-            fhir_client = FhirClient(host_config[args.env], idcache=cache_remote_ids)
+            fhir_client = FhirClient(host_config[args.host], idcache=cache_remote_ids)
 
             #cache = IdCache(config['study_id'], fhir_client.target_service_url)
             loader = ResourceLoader(config['identifier_prefix'], fhir_client, study_id=config['study_id'], resource_list=args.resource, module_list=args.module, idcache=cache_remote_ids, threaded=args.threaded, thread_count=args.thread_count)

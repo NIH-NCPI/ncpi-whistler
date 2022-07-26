@@ -418,8 +418,7 @@ def exec():
     )
     pdb.set_trace()
     parser.add_argument(
-        "-e",
-        "--env",
+        "--host",
         choices=env_options,
         help=f"Remote configuration to be used to access the FHIR server. If no environment is provided, the system will stop after generating the whistle output (no validation, no loading)",
     )
@@ -498,7 +497,7 @@ def exec():
     if args.max_validations > 0:
         ResourceLoader._max_validations_per_resource = args.max_validations
     cache_remote_ids = RIdCache(study_id=args.study_id, valid_patterns=args.fhir_id_patterns)
-    fhir_client = FhirClient(host_config[args.env], idcache=cache_remote_ids)
+    fhir_client = FhirClient(host_config[args.host], idcache=cache_remote_ids)
 
     #cache = IdCache(config['study_id'], fhir_client.target_service_url)
     print(args)

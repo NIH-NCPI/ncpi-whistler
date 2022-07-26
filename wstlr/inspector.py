@@ -51,6 +51,7 @@ class ResourceInspector:
             print(resource)
             print("No resourceType was found. As such, this is not a valid resource")
             pdb.set_trace()
+        
 
         ReportError('resourceType' not in resource, resource, "There is no resourceType specified in this resource")
 
