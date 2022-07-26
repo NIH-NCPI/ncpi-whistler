@@ -10,7 +10,7 @@ class EmbedableTable:
     def __init__(self, table_name, target_table, join_column):
         self.table_name = table_name
         self.target = target_table
-        self.join_col = join_column
+        self.join_col = join_column.lower()
 
         # There can be more than one matching row per ID 
         self.rows = collections.defaultdict(list)
@@ -19,8 +19,11 @@ class EmbedableTable:
     def load_data(self, filename):
         with open(filename, 'rt') as f:
             reader = DictReader(f, delimiter=',', quotechar='"')
+            reader.fieldnames = [x.lower() for x in reader.fieldnames]
             self.column_names = reader.fieldnames
 
+            if self.join_col not in self.column_names:
+                print(f"Unable to join on column name: {self.join_col}. Column not present in: {self.column_names}")
             assert(self.join_col in self.column_names)
 
             for line in reader:
