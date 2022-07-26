@@ -455,6 +455,8 @@ def DataCsvToObject(config):
 
                         if category in embedded:
                             for emb in embedded[category]:
+                                if emb.join_col not in data_chunk[0]:
+                                    print(f"Unable to find column, '{emb.join_col}', options include: {data_chunk[0].keys()} Unable to embed this table.")
                                 for row in data_chunk:
                                     row[emb.table_name] = emb.get_rows(row[emb.join_col])
 
