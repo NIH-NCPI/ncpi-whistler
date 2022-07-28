@@ -47,6 +47,7 @@ def ObjectifyHarmony(harmony_csv, curies):
     with open(harmony_csv, 'rt') as f:
         reader = DictReader(f, delimiter=',', quotechar='"')
 
+        redundant_notice = defaultdict(lambda: defaultdict(lambda: 0))
         for line in reader:
             if line['table_name'].strip() != "":
                 #print(line.keys())
@@ -86,7 +87,7 @@ def ObjectifyHarmony(harmony_csv, curies):
                 # We do have some redundant rows where the CDE has two variables but the dataset doesn't specify 
                 # at that detail. We'll just keep the last and hope they are identical
                 if target_code in mappings[local_cs]['group'][target_cs]['codes'][local_code]['target_codes']:
-                    print(f"{target_cs}:{target_code} appears more than once in for {local_cs}:{local_code}")
+                    redundant_notice[f"{local_cs}:{local_code}"][f"{target_cs}:{target_code}"] += 1
                     
                 mappings[local_cs]['group'][target_cs]['codes'][local_code]['target_codes'][target_code] = {
                     "code": line['code'],
@@ -115,6 +116,15 @@ def ObjectifyHarmony(harmony_csv, curies):
                     "table": "",
                     "parent": ""
                 }
+        if len(redundant_notice) > 0:
+            print(f"The following mappings were found to be duplicated")
+            printed = 0
+            for k in redundant_notice: 
+                printed += 1
+                if printed < 10:
+                    print(f"{k}: {', '.join(redundant_notice[k].keys())}")
+            if len(redundant_notice) > 10:
+                print(f"And {len(redundant_notice) - 10} more.")
 
     cm_obj = {
         # Stuff to build the two value sets
@@ -460,7 +470,6 @@ def BuildConceptMap(csvfilename, curies, codesystems=[]):
                             "target": cs["url"],
                             "element": []
                         }
-                        print(f"No clue why this isn't working!! {cs['varname']} => {cs['url']}")
                 else:
                     element = {
                         "source": cs['table_name'],

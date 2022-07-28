@@ -373,7 +373,6 @@ def DataCsvToObject(config):
 
         filenames = config['dataset'][category]['filename'].split(",")
 
-        print(filenames)
         dd_tablevar_cs.values[category] = ",".join([fn.split("/")[-1] for fn in filenames])
 
         if embedable is not None:
@@ -389,7 +388,6 @@ def DataCsvToObject(config):
         if 'aggregators' in config['dataset'][category]:
             agg_splitter = config['dataset'][category].get('aggregator-splitter')
             aggregators = BuildAggregators(config['dataset'][category]['aggregators'])
-            #print(aggregators)
         
         code_details = {}
         if 'code_harmonization' in config['dataset'][category]:
@@ -410,9 +408,7 @@ def DataCsvToObject(config):
         # of the long, descriptive name
         dd_based_varnames = {}
         if 'data_dictionary' in config['dataset'][category]:
-
-
-            print(config['dataset'][category]['data_dictionary']['filename'])
+            # print(config['dataset'][category]['data_dictionary']['filename'])
             with open(config['dataset'][category]['data_dictionary']['filename'], 'rt', encoding='utf-8-sig') as f:
                 delimiter = ","
                 if 'delimiter' in config['dataset'][category]['data_dictionary']:
