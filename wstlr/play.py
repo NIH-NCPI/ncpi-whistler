@@ -5,7 +5,7 @@
 from pathlib import Path
 from wstlr.conceptmap import BuildConceptMap
 from wstlr.extractor import DataCsvToObject
-from wstlr.inspector import ResourceInspector
+from wstlr.inspector import ResourceInspector, ObservationInspector
 from wstlr.module_summary import ModuleSummary
 
 from  subprocess import run
@@ -279,9 +279,10 @@ for each of the auth types currently supported.\n"""
             # We really only want to run this when we generate a new Whistle file,
             # so we'll do this work separately from the other consumers
             resource_inspector = ResourceInspector(require_official=require_official)
+            obs_inspector = ObservationInspector()
             resource_summary = ModuleSummary()
             with open(result_file, 'rt') as  f:
-                ParseBundle(f, [resource_inspector.check_identifier, resource_summary.summary])            
+                ParseBundle(f, [resource_inspector.check_identifier, obs_inspector.inspect, resource_summary.summary])            
             resource_summary.print_summary()
         else:
             result_file = str(whistle_output)

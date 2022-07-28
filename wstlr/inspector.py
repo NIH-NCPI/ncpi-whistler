@@ -40,6 +40,18 @@ def CheckForUse(identifiers):
         pdb.set_trace()
     return official_count == 1
 
+
+class ObservationInspector:
+    def __init__(self):
+        pass
+
+    def inspect(self, group_name, resource):
+
+        ReportError('resourceType' not in resource, resource, "There is no resourceType specified in this resource")
+
+        if resource['resourceType'] == "Observation":
+            ReportError('code' not in resource, resource, "There is no code present in this resource")
+
 class ResourceInspector:
     def __init__(self, require_official):
         # ResourceType => Set(ids)
@@ -51,7 +63,6 @@ class ResourceInspector:
             print(resource)
             print("No resourceType was found. As such, this is not a valid resource")
             pdb.set_trace()
-        
 
         ReportError('resourceType' not in resource, resource, "There is no resourceType specified in this resource")
 
@@ -102,8 +113,9 @@ def exec():
 
     args = parser.parse_args(sys.argv[1:])
     resource_inspector = ResourceInspector(require_official=args.require_official)
+    obs_inspector = ObservationInspector()
     summary = ModuleSummary()
     for result_file in args.file:
-        modules = set(ParseBundle(result_file, [resource_inspector.check_identifier, summary.summary]))
+        modules = set(ParseBundle(result_file, [resource_inspector.check_identifier, obs_inspector.inspect, summary.summary]))
 
     summary.print_summary()
