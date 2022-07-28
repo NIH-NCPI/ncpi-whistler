@@ -182,6 +182,7 @@ def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, co
         "table_name": table_name,
         "variables": []
     }
+
     reader = csv.DictReader(dd_file, delimiter=delimiter, quotechar='"')
     reader.fieldnames = [x.lower() for x in reader.fieldnames]
     #pdb.set_trace()
@@ -196,7 +197,7 @@ def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, co
             print(e)
             sys.exit(1)
 
-        table_cs_values.append(f"{varname}={desc}")
+        table_cs_values.append(f"{varname}={desc.replace('=', ' is equal to ')}")
         variable = {
             'varname': varname,
         }
@@ -370,11 +371,10 @@ def DataCsvToObject(config):
     for category in config['dataset'].keys():
         embedable = config['dataset'][category].get('embed')
 
-        filenames = config['dataset'][category]['filename']
-        if "," in filenames:
-            filenames = filenames.split(",")
+        filenames = config['dataset'][category]['filename'].split(",")
 
-        dd_tablevar_cs.values[category] = ",".join([fn.split("/")[-1] for fn in filenames.split(",")])
+        print(filenames)
+        dd_tablevar_cs.values[category] = ",".join([fn.split("/")[-1] for fn in filenames])
 
         if embedable is not None:
             embd = EmbedableTable(category, embedable['dataset'], embedable['colname'])
