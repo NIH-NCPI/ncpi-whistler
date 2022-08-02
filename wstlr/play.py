@@ -141,7 +141,7 @@ for each of the auth types currently supported.\n"""
     parser.add_argument(
         "-e", 
         "--env", 
-        choices=["dev", "qa", "prod"],
+        choices=["local", "dev", "qa", "prod"],
         help=f"If your config has host details configured, you can use these short cuts to choose the appropriate host details. This is useful if you wish to run different configurations on the same command, but each has a different target host. "
     )
     parser.add_argument(

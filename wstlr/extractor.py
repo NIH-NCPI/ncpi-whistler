@@ -43,6 +43,7 @@ def clean_values(valuestring):
     if valuestring is None:
         return ""
     return re.sub(xcleaner, ';', valuestring.strip())
+    
 def fix_fieldname(fieldname):
     return fieldname.lower().replace(" ", "_").replace(")", "").replace("(", "").replace("/", "_")
 
@@ -169,7 +170,7 @@ class DataDictionaryVariableCS:
             })
         return values
 
-def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, colnames=None, delimiter=","): 
+def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, colnames=None, delimiter=",", subject_id=None): 
     """DDs are treated differently. Rather than an array of objects, it's one object with select columns as properties
     
     Values are aggregated into key/value objects where the value is the key and the meaning is the value
@@ -182,6 +183,11 @@ def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, co
         "table_name": table_name,
         "variables": []
     }
+
+    # Allow the configuration to specify the fieldname associated with the subject's ID. This will be necessary for generating
+    # whistle code for the row level representation. 
+    if subject_id is not None:
+        dd_content['subject_id'] = subject_id
 
     reader = csv.DictReader(dd_file, delimiter=delimiter, quotechar='"')
     reader.fieldnames = [x.lower() for x in reader.fieldnames]
@@ -414,7 +420,7 @@ def DataCsvToObject(config):
                 if 'delimiter' in config['dataset'][category]['data_dictionary']:
                     delimiter = config['dataset'][category]['data_dictionary']['delimiter']
 
-                dd, cs_values = ObjectifyDD(config['study_id'], consent_group, category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'), delimiter=delimiter)
+                dd, cs_values = ObjectifyDD(config['study_id'], consent_group, category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'), delimiter=delimiter, subject_id=config['dataset'][category].get("subject_id"))
                 
                 # fill out the 'values' list for each of the vars
                 for cs_entry in cs_values:

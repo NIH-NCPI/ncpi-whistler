@@ -23,7 +23,9 @@ setup(
             'bundleup = wstlr.bundle:exec',
             'builddd = wstlr.dd:exec',
             'delfhir = wstlr.purge:exec',
-            'inspectjson = wstlr.inspector:exec'
+            'inspectjson = wstlr.inspector:exec',
+            'buildrlobs = wstlr.rowlevel.obscomp:exec',
+            'buildrlqr = wstlr.rowlevel.questionnaire:exec'
         ]
     }
 )
