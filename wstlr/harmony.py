@@ -20,7 +20,9 @@ class CodeEntry:
         self.system = system
         self.display = display
         self.comment = comment
-    
+
+        if self.display.strip() == "":
+            self.display = self.code
 
 
 class Variable:
@@ -35,6 +37,9 @@ class Variable:
         # for value level names, this will be the variable name to which the value is assigned
         self.entry_main = CodeEntry(self.varname, system, ddvar['desc'], "")
         self.annotations = []
+
+        if self.desc.strip() == "":
+            self.desc = self.varname
 
     @classmethod
     def writeheader(cls, writer):

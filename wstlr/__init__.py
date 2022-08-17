@@ -4,6 +4,21 @@ from pathlib import Path
 from yaml import safe_load
 import sys
 from ncpi_fhir_client import fhir_auth
+import pdb
+
+from enum import Enum
+class TableType(Enum):
+    Default = 1
+    Embedded = 2
+    Grouped = 3
+
+def determine_table_type(table_def):
+    """Checks for specific keys to determine which TableType applies"""
+    if "embed" in table_def:
+        return TableType.Embedded
+    if "group_by" in table_def:
+        return TableType.Grouped
+    return TableType.Default
 
 def example_config(writer, auth_type=None):
     """Returns a block of text containing one or all possible auth modules example configurations"""

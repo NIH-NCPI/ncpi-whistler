@@ -107,7 +107,7 @@ class GroupBy:
 
 
 class DataDictionaryVariableCS:
-    def __init__(self, study, consent_group, table_name, varname, values):
+    def __init__(self, study, consent_group, table_name, varname, values, url_base=system_base):
         self.varname = varname
 
         self.study_component = study
@@ -115,9 +115,9 @@ class DataDictionaryVariableCS:
             self.study_component = f"{study}-{consent_group}"
 
         if varname is None:
-            self.url = f"{system_base}/CS/data-dictionary/{self.study_component}/{table_name}"
+            self.url = f"{url_base}/CS/data-dictionary/{self.study_component}/{table_name}"
         else:
-            self.url = f"{system_base}/CS/data-dictionary/{self.study_component}/{table_name}/{varname}"
+            self.url = f"{url_base}/CS/data-dictionary/{self.study_component}/{table_name}/{varname}"
 
         self.study = study
         self.consent_group = consent_group
@@ -168,9 +168,11 @@ class DataDictionaryVariableCS:
                 "code": code,
                 "description": self.values[code]
             })
+            if values[-1]['description'].strip() == "":
+                values[-1]['description'] = code
         return values
 
-def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, colnames=None, delimiter=",", subject_id=None): 
+def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, colnames=None, delimiter=",", subject_id=None, url_base=system_base): 
     """DDs are treated differently. Rather than an array of objects, it's one object with select columns as properties
     
     Values are aggregated into key/value objects where the value is the key and the meaning is the value
@@ -211,6 +213,8 @@ def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, co
         for colname in colnames.keys():
             if colname not in ["varname", 'values']:
                 store_data(colname, line, variable, colnames)
+        if variable['desc'].strip() == "":
+            variable['desc'] = variable['varname']
 
         if 'values' in colnames:
             variable['values'] = []
@@ -218,7 +222,7 @@ def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, co
             
             values = clean_values(line[vname])
             if values not in dd_codesystems:
-                dd_codesystems[values] = DataDictionaryVariableCS(study_id, consent_group, table_name, varname, values)
+                dd_codesystems[values] = DataDictionaryVariableCS(study_id, consent_group, table_name, varname, values, url_base=url_base)
             variable['values'] = dd_codesystems[values].values_for_json()
             if len(values) > 0:
                 variable['values-details'] = {
@@ -235,7 +239,7 @@ def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, co
         print(f"We have already processed the table, {table_name}")
     assert(table_name not in dd_codesystems)
     #pdb.set_trace()
-    dd_codesystems[table_name] = DataDictionaryVariableCS(study_id, consent_group, table_name, None, ";".join(table_cs_values))
+    dd_codesystems[table_name] = DataDictionaryVariableCS(study_id, consent_group, table_name, None, ";".join(table_cs_values), url_base=url_base)
 
     return dd_content, table_cs_values
 
@@ -362,7 +366,7 @@ def DataCsvToObject(config):
 
     consent_group = dataset['study'].get('consent_code')
 
-    dd_tablevar_cs = DataDictionaryVariableCS(config['study_id'], consent_group, "DataSet", None, "")
+    dd_tablevar_cs = DataDictionaryVariableCS(config['study_id'], consent_group, "DataSet", None, "", url_base=config['identifier_prefix'])
     dataset['study']['data-dictionary'][0] = dd_tablevar_cs.as_obj()
 
     active_tables = config.get('active_tables')

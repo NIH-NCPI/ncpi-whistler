@@ -24,8 +24,8 @@ setup(
             'builddd = wstlr.dd:exec',
             'delfhir = wstlr.purge:exec',
             'inspectjson = wstlr.inspector:exec',
-            'buildrlobs = wstlr.rowlevel.obscomp:exec',
-            'buildrlqr = wstlr.rowlevel.questionnaire:exec'
+            'buildsrcobs = wstlr.sourcedata.obscomp:exec',
+            'buildsrcqr = wstlr.sourcedata.questionnaire:exec'
         ]
     }
 )
