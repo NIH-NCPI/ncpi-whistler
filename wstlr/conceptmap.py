@@ -132,7 +132,7 @@ def ObjectifyHarmony(harmony_csv, curies):
         "target_codes": [],
         "mappings": []
     }
-    #pdb.set_trace()
+
     for vs_key in vs_sources:
         csystem, tablename, parentvarname = vs_key.split(":")
         curie = ""
@@ -188,17 +188,16 @@ def ObjectifyHarmony(harmony_csv, curies):
                     "display": source_mapping['display'],
                     "target": []
                 }
-                #pdb.set_trace()
+
                 for target_code in source_mapping['target_codes']:
                     target_mapping = source_mapping['target_codes'][target_code]
-                    #print(target_mapping)
+
                     element['target'].append({
                         "code": target_mapping['code'],
                         "display": target_mapping['display']
                     })
                 local_mapping['element'].append(element)
             
-            #pdb.set_trace()
             cm_obj['mappings'].append(local_mapping)
 
     return cm_obj
