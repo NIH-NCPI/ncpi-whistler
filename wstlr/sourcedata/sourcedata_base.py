@@ -1,5 +1,5 @@
 
-rl_observation_def_base = """
+srcd_observation_def_base = """
 def BuildObsComponentString(study, table_name, varname, required value) {
     code.coding: HarmonizeMapped(varname, table_name);
     valueString: value;
@@ -7,23 +7,39 @@ def BuildObsComponentString(study, table_name, varname, required value) {
 
 def BuildObsComponentCategorical(study, table_name, varname, required value) {
     code.coding: HarmonizeMapped(varname, table_name);
-    valueCodeableConcept.coding[]: Harmonize(value, varname);
+    valueCodeableConcept.coding[]: HarmonizeMapped(value, varname);
 }
 
 def BuildObsComponentInteger(study, table_name, varname, required value) {
     code.coding: HarmonizeMapped(varname, table_name);
-    valueInteger: $ParseInt(value);
+    if ($Type(value)="number") {
+        valueQuantity.value: $ParseInt(value);
+    } else {
+        valueString: value;
+    }
 }
 
 def BuildObsComponentQuantity(study, table_name, varname, required value) {
     code.coding: HarmonizeMapped(varname, table_name);
-    valueQuantity.value: $ParseFloat(value);
+        
+    if ($Type(value)="number") {
+        valueQuantity.value: $ParseFloat(value);
+    } else {
+        valueString: value;
+    }
 }
 """
 
-rl_questionnaire_def_base = """
+srcd_questionnaire_def_base = """
 def BuildQuestionnaireURL(study, table_name) {
     $this: $StrCat(study.identifier-prefix, "/data-dictionary/rl-questionnaire/", study.id, "/", $ToLower(table_name));
+}
+
+// There are a few ways to handle values that don't work as numbers, so 
+// we'll just make a function to use them so it will be easier to change. 
+def QuestionnaireNotNumber(value) {
+    valueCoding: BuildCodeableConcept("not-a-number", "http://terminology.hl7.org/CodeSystem/data-absent-reason", "Not a Number (NaN)");
+    // valueString: value
 }
 
 // Questionnaire Response Item helpers
@@ -34,27 +50,40 @@ def ReportQuestionnaireItemBasic(study, varname, text, value) {
 }
 def ReportQuestionnaireItemCategorical(study, varname, text, code) {
 
-    var coding: HarmonizeMappedFirst(code, varname);
-
+    var coding: HarmonizeSelectByPrefix(study, code, varname);
+    linkId: varname;
+    text: text;
     if (coding?) {
         answer[].valueCoding: coding;
-        linkId: varname;
-        text: text;
-    } else {
-        answer[].valueString: code;
-    }
+
+    } 
+}
+
+def ReportQuestionnaireItemInteger(study, varname, text, required value) {
+    linkId: varname;
+    text: text;
+    if ($Type(value)="number") {
+         answer[].valueInteger: $ParseInt(value);
+    } 
+}
+
+def ReportQuestionnaireItemQuantity(study, varname, text, required value) {        
+    linkId: varname;
+    text: text;
+
+    if ($Type(value)="number") {
+        answer[].valueQuantity.value: $ParseFloat(value);
+    } 
 }
 
 // Questionnaire Item Construction
 def BuildQuestionnaireItemBasic(study, table_name, varname, text, datatype) {
     linkId: varname;
-    code: Harmonize(varname, table_name);
     text: text;
     type: $ToLower(datatype);
 }
 def BuildQuestionnaireItemCategorical(study, table_name, varname, text, datatype, url) {
     linkId: varname;
-    code: Harmonize(varname, table_name);
     text: text;
     type: "choice";
     answerValueSet: url;
