@@ -18,6 +18,7 @@ from argparse import ArgumentParser, FileType
 import re
 #from bs4 import BeautifulSoup
 import requests
+from wstlr import get_host_config
 from wstlr.load import ResourceLoader
 from wstlr.idcache import IdCache
 from wstlr.bundle import Bundle, ParseBundle, RequestType
@@ -113,19 +114,7 @@ def example_config(writer, auth_type=None):
             modules[key].example_config(writer, other_entries)
 
 def exec():
-    host_config_filename = Path("fhir_hosts")
-
-    if not host_config_filename.is_file() or host_config_filename.stat().st_size == 0:
-        example_config(sys.stdout)
-        sys.stderr.write(
-            f"""
-A valid host configuration file, fhir_hosts, must exist in cwd and was not 
-found. Example configuration has been written to stout providing examples 
-for each of the auth types currently supported.\n"""
-        )
-        sys.exit(1)
-
-    host_config = safe_load(host_config_filename.open("rt"))
+    host_config = get_host_config()
     # Just capture the available environments to let the user
     # make the selection at runtime
     env_options = sorted(host_config.keys())

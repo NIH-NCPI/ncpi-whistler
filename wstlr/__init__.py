@@ -5,8 +5,11 @@ from yaml import safe_load
 import sys
 from ncpi_fhir_client import fhir_auth
 import pdb
-
 from enum import Enum
+
+system_base = "https://nih-ncpi.github.io/ncpi-fhir-ig"
+
+
 class TableType(Enum):
     Default = 1
     Embedded = 2
@@ -57,12 +60,21 @@ def get_host_config():
 
     if not host_config_filename.is_file() or host_config_filename.stat().st_size == 0:
         example_config(sys.stdout)
-        sys.stderr.write(
-            f"""
+        die_if(True, f"""
 A valid host configuration file, fhir_hosts, must exist in cwd and was not 
 found. Example configuration has been written to stout providing examples 
 for each of the auth types currently supported.\n"""
         )
-        sys.exit(1)
 
     return safe_load(host_config_filename.open("rt"))
+
+def die_if(do_die, msg, errnum=1):
+    if do_die:
+        sys.stderr.write(msg + "\n")
+        sys.exit(errnum)
+
+def dd_system_url(url_base, term_type, study_component, table_name, varname ):
+    if varname is None:
+        return f"{url_base}/{term_type}/data-dictionary/{study_component}/{table_name}"
+    else:
+        return f"{url_base}/{term_type}/data-dictionary/{study_component}/{table_name}/{varname}"

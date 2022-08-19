@@ -11,9 +11,9 @@ from collections import defaultdict
 from copy import deepcopy
 from wstlr.conceptmap import ObjectifyHarmony
 from wstlr.embedable import EmbedableTable
-import pdb
+from wstlr import dd_system_url, system_base
 
-system_base = "https://nih-ncpi.github.io/ncpi-fhir-ig"
+from wstlr import system_base
 
 default_colnames = {
     "varname": "varname",
@@ -114,10 +114,7 @@ class DataDictionaryVariableCS:
         if consent_group is not None:
             self.study_component = f"{study}-{consent_group}"
 
-        if varname is None:
-            self.url = f"{url_base}/CS/data-dictionary/{self.study_component}/{table_name}"
-        else:
-            self.url = f"{url_base}/CS/data-dictionary/{self.study_component}/{table_name}/{varname}"
+        self.url = dd_system_url(url_base, "CodeSystem", self.study_component, table_name, varname)
 
         self.study = study
         self.consent_group = consent_group
@@ -346,6 +343,7 @@ def DataCsvToObject(config):
             "desc": config['study_desc'],
             "identifier-prefix": config['identifier_prefix'],
             "url": config['url'],
+            "publisher": config.get('publisher'),
             "data-dictionary": [
                 {
                     "study": config['study_id'],
@@ -363,8 +361,15 @@ def DataCsvToObject(config):
     if 'consent_group' in config:
         dataset['study']['consent_group'] = config['consent_group']
         dataset['study']['consent_code'] = config['consent_group']['code']
+    
+    if dataset['study']['publisher'] is None:
+        dataset['study']['publisher'] = "NCPI FHIR Working Group"
 
     consent_group = dataset['study'].get('consent_code')
+    study_component = dataset['study']['id']
+    if consent_group is not None:
+        study_component = f"{study_component}-{consent_group}"
+
 
     dd_tablevar_cs = DataDictionaryVariableCS(config['study_id'], consent_group, "DataSet", None, "", url_base=config['identifier_prefix'])
     dataset['study']['data-dictionary'][0] = dd_tablevar_cs.as_obj()
@@ -412,6 +417,8 @@ def DataCsvToObject(config):
             "type": "DD-Table",
             "values": []
         })
+
+
         # For some datasets, there may be an set of artificial question "names" or values 
         # which won't appear in the actual data. We'll need to scan this for the "description" 
         # to identify those artificial questions and assign those to the final output instead
@@ -444,7 +451,7 @@ def DataCsvToObject(config):
                 harmony_file = config['dataset'][category]['code_harmonization']
                 if harmony_file not in harmony_files:
                     harmony_files.add(harmony_file)
-                    dataset['harmony'].append(ObjectifyHarmony(harmony_file, curies=config.get('curies')))
+                    dataset['harmony'].append(ObjectifyHarmony(harmony_file, curies=config.get('curies'), study_component=study_component))
 
         if active_tables.get('ALL') == True or active_tables.get(category):
             if 'embed' not in config['dataset'][category]:
@@ -510,7 +517,7 @@ def exec(args=None):
                         "--output-root",
                         default='output/whistle-input')
 
-    args = parser.parse_args()
+    args = parser.parse_args(args=args)
     config = safe_load(args.config[0])
 
     # Work out the destination for the Whistle input

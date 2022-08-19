@@ -24,6 +24,7 @@ from argparse import ArgumentParser, FileType
 from pathlib import Path
 from collections import defaultdict
 from copy import deepcopy
+from wstlr import system_base, dd_system_url
 
 import pdb
 
@@ -31,7 +32,7 @@ import pdb
 
 # code,text,code system,local code,display,local code system,comment
 
-def ObjectifyHarmony(harmony_csv, curies):
+def ObjectifyHarmony(harmony_csv, curies, study_component, url_base=system_base):
     # source system => target system => source code => (target_codes)
     mappings = {}       # defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     sources = defaultdict(dict)
@@ -138,9 +139,11 @@ def ObjectifyHarmony(harmony_csv, curies):
         curie = ""
         if csystem in curies:
             curie = curies[csystem] + ":"
+    
+        system_url = dd_system_url(url_base, "CodeSystem", study_component, tablename, csystem)
         
         cm_obj['source_codes'].append({
-            "system": csystem,
+            "system": system_url,
             "table_name": tablename,
             "parent_varname": parentvarname,
             "codes":[]
@@ -172,9 +175,11 @@ def ObjectifyHarmony(harmony_csv, curies):
             })
 
     for local_cs in mappings:
+        table_name = mappings[local_cs]['table']
+        system_url = dd_system_url(url_base, "CodeSystem", study_component, table_name, local_cs)
         for target_cs in mappings[local_cs]['group']:
             local_mapping = {
-                "source": local_cs,
+                "source": system_url,
                 "table": mappings[local_cs]['table'],
                 "parent": mappings[local_cs]['parent'],
                 "target": target_cs,
