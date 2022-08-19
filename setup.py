@@ -1,5 +1,5 @@
 import os
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, find_namespace_packages
 
 from wstlr import __version__
 
@@ -12,7 +12,7 @@ setup(
     name="NCPI-Whistler",
     version=__version__,
     description=f"NCPI Whistler Pipeline {__version__}",
-    packages=find_packages(),
+    packages=find_namespace_packages(),
     include_package_data=True,
     install_requires=requirements,
     entry_points={
@@ -21,11 +21,12 @@ setup(
             'buildcm = wstlr.conceptmap:exec',
             'extractjson = wstlr.extractor:exec',
             'bundleup = wstlr.bundle:exec',
-            'builddd = wstlr.dd:exec',
+            'builddd = wstlr.dd.dd_from_fhir:exec',
             'delfhir = wstlr.purge:exec',
             'inspectjson = wstlr.inspector:exec',
             'buildsrcobs = wstlr.sourcedata.obscomp:exec',
-            'buildsrcqr = wstlr.sourcedata.questionnaire:exec'
+            'buildsrcqr = wstlr.sourcedata.questionnaire:exec',
+            'init-play = wstlr.init:exec'
         ]
     }
 )
