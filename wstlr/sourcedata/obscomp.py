@@ -21,7 +21,7 @@ from string import Template
 
 import pdb
 
-def BuildSrcLObsCore(whistle_src_dir, source_data_fns, process_fns):
+def WriteWhistleFile(whistle_src_dir, source_data_fns, process_fns, entry_point):
     filename = f"{whistle_src_dir}/source_data_observations.wstl"
     with open(filename, 'wt') as f:
         f.write(srcd_observation_def_base + "\n")
@@ -34,16 +34,20 @@ def BuildSrcLObsCore(whistle_src_dir, source_data_fns, process_fns):
         for table in process_fns:
             f.write(table + "\n")
 
+        f.write(f"// The entry point for all Obs Raw Data production\n{entry_point}")
+
     return filename
 
-def BuildSubjectReference(subjectid):
+def BuildSubjectReference(subjectid, key_columns=None):
+    if key_columns is not None and subjectid not in key_columns:
+        return ""
     if subjectid is not None and subjectid != "NONE":
         return f"""subject: Reference_Key_Identifier(study, "Patient", row_data.{subjectid});"""
     else:
         return ""
 
 
-def BuildEmbeddedProcessors(table_name, components, subjectid, colnames, key_columns, outvar):
+def BuildEmbeddedProcessors(table_name, parent_table, components, subjectid, colnames, key_columns, outvar):
     row_composition = Template("""
 def AddSourceDataObservation-${table_name}(study, id, row_data) {
     var table_name: "${table_name}";
@@ -60,18 +64,19 @@ $components
 }""").substitute(table_name=table_name, 
                     components=components, 
                     idcols=key_columns,
-                    subject_reference=BuildSubjectReference(subjectid))
+                    subject_reference=BuildSubjectReference(subjectid, key_columns))
 
     row_init = Template("""
 def ProcessSourceDataLevel-${table_name}(study, row) {
-    var id: $StrCat(${colnames});
+    var id: $$StrCat(${colnames});
     out $outvar: AddSourceDataObservation-${table_name}(study, id, row.${table_name}[]);
 }        
         """).substitute(table_name=table_name, 
                         colnames=colnames, 
                         outvar=outvar)
 
-    return row_composition, row_init
+    entry_fn = f"   $this: ProcessSourceDataLevel-{table_name}(resource.study, resource.{parent_table}[]);"
+    return row_composition, row_init, entry_fn
 
 def BuildGroupedProcessors(table_name, components, subjectid, group_cols, key_columns, outvar):
     row_composition = Template("""
@@ -90,7 +95,7 @@ $components
 }""").substitute(table_name=table_name, 
                     components=components, 
                     idcols=key_columns,
-                    subject_reference=BuildSubjectReference(subjectid))
+                    subject_reference=BuildSubjectReference(subjectid, key_columns))
 
     row_init = Template("""
 def ProcessSourceDataLevel-${table_name}(study, row) {
@@ -101,7 +106,8 @@ def ProcessSourceDataLevel-${table_name}(study, row) {
                         groupcols=group_cols, 
                         outvar=outvar)
 
-    return row_composition, row_init
+    entry_fn = f"   $this: ProcessSourceDataLevel-{table_name}(resource.study, resource.{table_name}[]);"
+    return row_composition, row_init, entry_fn
 
 def BuildStandardProcessors(table_name, components, subjectid, key_columns, outvar):
     row_composition = Template("""
@@ -119,7 +125,8 @@ def AddSourceDataObservation-${table_name}(study, row_data) {
 $components
 }""").substitute(table_name=table_name, 
                     components=components, 
-                    idcols=key_columns, subject_reference=BuildSubjectReference(subjectid))
+                    idcols=key_columns, 
+                    subject_reference=BuildSubjectReference(subjectid, key_columns))
 
     row_init = Template("""
 def ProcessSourceDataLevel-${table_name}(study, row) {
@@ -127,7 +134,8 @@ def ProcessSourceDataLevel-${table_name}(study, row) {
 }        
         """).substitute(table_name=table_name, outvar=outvar)
 
-    return row_composition, row_init
+    entry_fn = f"   $this: ProcessSourceDataLevel-{table_name}(resource.study, resource.{table_name}[]);"
+    return row_composition, row_init, entry_fn
 
 def BuildSrcLProcessor(outvar, ddtable, ddconfig, id_colname):
     table_name = ddtable['table_name']
@@ -167,18 +175,20 @@ def BuildSrcLProcessor(outvar, ddtable, ddconfig, id_colname):
         if table_type == TableType.Default:    
             key_columns = identifier_columns(ddconfig.get('key_columns'), subjectid)
 
-            row_composition, row_init = BuildStandardProcessors(table_name, components, subjectid, key_columns, outvar)
+            row_composition, row_init, entry_fn = BuildStandardProcessors(table_name, components, subjectid, key_columns, outvar)
         elif table_type == TableType.Grouped:
             key_columns = identifier_columns(ddconfig.get('key_columns'), subjectid)
             group_columns = identifier_columns(ddconfig.get("group_by"), subjectid, "row")
-            row_composition, row_init = BuildGroupedProcessors(table_name, components, subjectid, group_columns, key_columns, outvar)
+            row_composition, row_init, entry_fn = BuildGroupedProcessors(table_name, components, subjectid, group_columns, key_columns, outvar)
         elif table_type == TableType.Embedded:
             key_columns = identifier_columns(ddconfig.get('key_columns'), subjectid)
-            group_columns = identifier_columns(ddconfig['embed'].get("sample_id"), subjectid, "row")
-            row_composition, row_init = BuildEmbeddedProcessors(table_name, components, subjectid, group_columns, key_columns, outvar)
+            group_columns = identifier_columns(ddconfig['embed'].get("colname"), subjectid, "row")
+            parent_name = ddconfig['embed']['dataset']
+
+            row_composition, row_init, entry_fn = BuildEmbeddedProcessors(table_name, parent_name, components, subjectid, group_columns, key_columns, outvar)
 
         
-    return (row_composition, row_init)
+    return (row_composition, row_init, entry_fn)
 
 
 def exec():
@@ -215,6 +225,7 @@ def exec():
         # clarity
         data_functions = []
         process_functions = []
+        entry_fns = []
         for category in config['dataset'].keys():
             if 'data_dictionary' in config['dataset'][category]:
                 table_type = determine_table_type(config['dataset'][category])
@@ -227,7 +238,7 @@ def exec():
                     dd, cs_values = ObjectifyDD(config['study_id'], consent_group, category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'), delimiter=delimiter)
   
                     try:
-                        (row_composition, row_init) = BuildSrcLProcessor("source_data", 
+                        (row_composition, row_init, entry_fn) = BuildSrcLProcessor("source_data", 
                                                                     dd, 
                                                                     config['dataset'][category],
                                                                     fix_fieldname(config['id_colname']))
@@ -236,9 +247,11 @@ def exec():
                         sys.exit(1)
                     data_functions.append(row_composition)
                     process_functions.append(row_init)
+                    entry_fns.append(entry_fn)
 
         if len(data_functions) > 0:
-            filename = BuildSrcLObsCore(whistle_src_dir, data_functions, process_functions)
+            entry_point = """def BuildRawDataObs(resource) {\n""" + "\n".join(entry_fns) + "\n}\n"""
+            filename = WriteWhistleFile(whistle_src_dir, data_functions, process_functions, entry_point)
             print(f"File created: {filename}")
         else:
             print(f"No file created this time")

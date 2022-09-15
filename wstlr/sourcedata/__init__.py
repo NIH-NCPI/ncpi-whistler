@@ -4,8 +4,8 @@ from wstlr.extractor import fix_fieldname
 import sys
 
 _string_types = set(['string', ''])
-_integer_types = set(['int'])
-_float_types = set(['number'])
+_integer_types = set(['int', 'integer'])
+_float_types = set(['number', 'decimal'])
 
 
 

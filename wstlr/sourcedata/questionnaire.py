@@ -18,7 +18,7 @@ from string import Template
 
 import pdb
 
-def WriteWhistleFile(whistle_src_dir, row_level_fns, process_fns):
+def WriteWhistleFile(whistle_src_dir, row_level_fns, process_fns, entry_point):
     filename = f"{whistle_src_dir}/source_data_questionnaires.wstl"
     with open(filename, 'wt') as f:
         f.write(srcd_questionnaire_def_base + "\n")
@@ -30,6 +30,8 @@ def WriteWhistleFile(whistle_src_dir, row_level_fns, process_fns):
         f.write("// Process each table separately, passing each individual row separately")
         for table in process_fns:
             f.write(table + "\n")
+    
+        f.write(f"// The entry point for all QR Raw Data production\n{entry_point}")
 
     return filename
 
@@ -113,7 +115,7 @@ def AddSourceDataQuestionnaire-${table_name}(study) {
     title: \"${table_desc}\";
     status: "active";
     ${subjtype}
-    code[]: BuildCodeableConcept("74468-0", "https://loinc.org/", "Questionnaire form definition Document");
+    code[]: BuildCoding("74468-0", "Questionnaire form definition Document", "https://loinc.org/");
     code[]: HarmonizeMapped(table_name, "DataSet");
 
     resourceType: "Questionnaire";
@@ -140,9 +142,10 @@ def ProcessQuestionnaire-${table_name}(study, rows) {
 }        
         """).substitute(table_name=table_name, outvar=outvar)
 
-    return (row_composition, row_init)
+    entry_fn = f"   $this: ProcessQuestionnaire-{table_name}(resource.study, resource.{table_name}[*]);"
+    return (row_composition, row_init, entry_fn)
 
-def BuildQuestionnaireEmbedded(outvar, table_name, table_desc, subject_reference, subject_type, colnames, key_columns, qitems, items):
+def BuildQuestionnaireEmbedded(outvar, table_name, parent_table, table_desc, subject_reference, subject_type, colnames, key_columns, qitems, items):
 
     row_composition = Template("""
 // Build the Questionnaire itself
@@ -157,7 +160,7 @@ def AddSourceDataQuestionnaire-${table_name}(study) {
     title: \"${table_desc}\";
     status: "active";
     ${subjtype}
-    code[]: BuildCodeableConcept("74468-0", "https://loinc.org/", "Questionnaire form definition Document");
+    code[]: BuildCoding("74468-0", "Questionnaire form definition Document", "https://loinc.org/");
     code[]: HarmonizeMapped(table_name, "DataSet");
 
     resourceType: "Questionnaire";
@@ -178,15 +181,19 @@ $items
 
     row_init = Template("""
 
-def ProcessQuestionnaire-${table_name}(study, rows) {
-    out $outvar: AddSourceDataQuestionnaire-${table_name}(study);
-
+def ProcessQuestionnaire-${table_name}(study, row) {
     var id: $$StrCat(${colnames});
-    out $outvar: AddSourceDataQuestionnaireResponse-${table_name}(study, id, rows[*].${table_name});
+    out $outvar: AddSourceDataQuestionnaireResponse-${table_name}(study, id, row.${table_name}[]);
+}   
+
+def ProcessQuestionnairePrep-${table_name}(study, rows) {
+    out $outvar: AddSourceDataQuestionnaire-${table_name}(study);
+    out $outvar: ProcessQuestionnaire-${table_name}(study, rows[]);
 }        
         """).substitute(table_name=table_name, colnames=colnames, outvar=outvar)
 
-    return (row_composition, row_init)
+    entry_fn = f"   $this: ProcessQuestionnairePrep-{table_name}(resource.study, resource.{parent_table}[*]);"
+    return (row_composition, row_init, entry_fn)
 
 def BuildQuestionnaireGrouped(outvar, table_name, table_desc, subject_reference, subject_type, group_columns, key_columns, qitems, items):
     row_composition = Template("""
@@ -202,7 +209,7 @@ def AddSourceDataQuestionnaire-${table_name}(study) {
     title: \"${table_desc}\";
     status: "active";
     ${subjtype}
-    code[]: BuildCodeableConcept("74468-0", "https://loinc.org/", "Questionnaire form definition Document");
+    code[]: BuildCoding("74468-0", "Questionnaire form definition Document", "https://loinc.org/");
     code[]: HarmonizeMapped(table_name, "DataSet");
 
     resourceType: "Questionnaire";
@@ -234,11 +241,12 @@ def ProcessQuestionnaire-${table_name}(study, rows) {
 }        
         """).substitute(table_name=table_name, groupcols=group_columns, outvar=outvar)
 
-    return (row_composition, row_init)
+    entry_fn = f"   $this: ProcessQuestionnaire-{table_name}(resource.study, resource.{table_name}[*]);"
+    return (row_composition, row_init, entry_fn)
 
 
 
-def BuildSrcDataProcessor(outvar, ddtable, ddconfig, filename):
+def BuildSrcDataProcessor(outvar, ddtable, ddconfig, filename, id_colname):
     table_name = ddtable['table_name']
     table_type = determine_table_type(ddconfig)
     subject_id_col = ddconfig.get('subject_id')
@@ -251,7 +259,8 @@ def BuildSrcDataProcessor(outvar, ddtable, ddconfig, filename):
         table_desc = table_name
 
     subjectid = "SUBJECTID_REPLACE_ME"
-
+    if subject_id_col is None:
+        subject_id_col = id_colname
     if subject_id_col:
         subjectid=subject_id_col
 
@@ -275,7 +284,6 @@ def BuildSrcDataProcessor(outvar, ddtable, ddconfig, filename):
             items.append(f"    item[]: ReportQuestionnaireItemQuantity(study, \"{varname}\", \"{variable['desc']}\", row_data.{fix_fieldname(varname)});")
         else:
             print(f"What do we do with this one? {varname} is {vartype}")
-            pdb.set_trace()
             qitems.append(f"    item[]: BuildQuestionnaireItemBasic(study, table_name, \"{varname}\", \"{variable['desc']}\", \"string\");")
             items.append(f"    item[]: ReportQuestionnaireItemBasic(study, \"{varname}\", \"{variable['desc']}\", row_data.{fix_fieldname(varname)});")
 
@@ -291,10 +299,10 @@ def BuildSrcDataProcessor(outvar, ddtable, ddconfig, filename):
         else:
             subject_reference =""
             subject_type = ""
-
+        
         if table_type == TableType.Default:
             key_columns = identifier_columns(ddconfig.get('key_columns'), subjectid)
-            row_composition, row_init = BuildQuestionnaireStandard(outvar, 
+            row_composition, row_init, entry_fn = BuildQuestionnaireStandard(outvar, 
                                                                     table_name,
                                                                     table_desc, 
                                                                     subject_reference,
@@ -306,7 +314,7 @@ def BuildSrcDataProcessor(outvar, ddtable, ddconfig, filename):
         elif table_type == TableType.Grouped:
             key_columns = identifier_columns(ddconfig.get('key_columns'), subjectid)
             group_columns = identifier_columns(ddconfig.get("group_by"), subjectid, "row")
-            row_composition, row_init = BuildQuestionnaireGrouped(outvar, 
+            row_composition, row_init, entry_fn = BuildQuestionnaireGrouped(outvar, 
                                                                     table_name,
                                                                     table_desc, 
                                                                     subject_reference,
@@ -317,10 +325,21 @@ def BuildSrcDataProcessor(outvar, ddtable, ddconfig, filename):
                                                                     items)
         elif table_type == TableType.Embedded:
             key_columns = identifier_columns(ddconfig.get('key_columns'), subjectid)
-            group_columns = identifier_columns(ddconfig['embed'].get("sample_id"), subjectid, "row")
-            row_composition, row_init = BuildQuestionnaireEmbedded(table_name, components, subjectid, group_columns, key_columns, outvar)
+            group_columns = identifier_columns(ddconfig['embed'].get("colname"), subjectid, "row")
+            parent_name = ddconfig['embed']['dataset']
+
+            row_composition, row_init, entry_fn = BuildQuestionnaireEmbedded(outvar, 
+                                                                    table_name, 
+                                                                    parent_name,
+                                                                    table_desc,
+                                                                    subject_reference,
+                                                                    subject_type, 
+                                                                    group_columns,
+                                                                    key_columns, 
+                                                                    qitems,
+                                                                    items)
         
-    return (row_composition, row_init)
+    return (row_composition, row_init, entry_fn)
 
 
 def exec():
@@ -357,6 +376,7 @@ def exec():
         # clarity
         data_functions = []
         process_functions = []
+        entry_fns = []
 
         for category in config['dataset'].keys():
             if 'data_dictionary' in config['dataset'][category]:
@@ -374,20 +394,23 @@ def exec():
                     dd, cs_values = ObjectifyDD(config['study_id'], consent_group, category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'), delimiter=delimiter)
   
                     try:
-                        (row_composition, row_init) = BuildSrcDataProcessor("source_data", 
+                        (row_composition, row_init, entry_fn) = BuildSrcDataProcessor("source_data", 
                                                                             dd, 
                                                                             config['dataset'][category],
-                                                                            filename=config['dataset'][category]['data_dictionary']['filename']
+                                                                            filename=config['dataset'][category]['data_dictionary']['filename'],
+                                                                            id_colname=fix_fieldname(config['id_colname'])
                                                                             )
                     except MissingKeyColumns as e:
                         sys.stderr.write(e.message(category) + "\n")
                         sys.exit(1)
                     data_functions.append(row_composition)
                     process_functions.append(row_init)
+                    entry_fns.append(entry_fn)
 
         if len(data_functions) > 0:
-            
-            filename = WriteWhistleFile(whistle_src_dir, data_functions, process_functions)
+            entry_point = """def BuildRawDataQR(resource) {\n""" + "\n".join(entry_fns) + "\n}\n"""
+
+            filename = WriteWhistleFile(whistle_src_dir, data_functions, process_functions, entry_point)
             print(f"File created: {filename}")
         else:
             print(f"No file created this time")

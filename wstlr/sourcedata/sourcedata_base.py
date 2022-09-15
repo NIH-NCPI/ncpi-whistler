@@ -38,7 +38,7 @@ def BuildQuestionnaireURL(study, table_name) {
 // There are a few ways to handle values that don't work as numbers, so 
 // we'll just make a function to use them so it will be easier to change. 
 def QuestionnaireNotNumber(value) {
-    valueCoding: BuildCodeableConcept("not-a-number", "http://terminology.hl7.org/CodeSystem/data-absent-reason", "Not a Number (NaN)");
+    valueCoding: BuildCoding("not-a-number", "Not a Number (NaN)", "http://terminology.hl7.org/CodeSystem/data-absent-reason");
     // valueString: value
 }
 
