@@ -1,0 +1,39 @@
+// Build Race and Ethnicity Extension representations
+//
+// Race and Ethnicity extensions will probably be useful for all sorts of 
+// projects. The translation from local to FHIR's required coding must be
+// handed by the harmonization component (i.e. the ConceptMap, probably
+// constructed by Whistler)
+//
+// While the extensions themselves will be common for many if not all 
+// studies, the format of the incoming data may vary. For this dataset,
+// the data comes in as seperate "coumns" represented in JSON as individual
+// objects with a value and code property. This code is a local code representing
+// whatever coding is found in the original source data (in the case of ds-connect,
+// that would be words and phrases like 'White' or 'Not Hispanic or ...')
+
+// Definition: Add the Race extension if the data is present 
+// 
+// Argument:
+//  race - This is a JSON object containing the response for one of the race checkboxes
+//   code is the response, likely as provided inside the form
+//   value is the checkbox value itself ("1" or "")
+//
+// We will ignore any race details that are not checked 
+def RaceExtension(subject) {
+    if (subject.race? and subject.race ~= "NA") {
+        var RaceValueCoding: HarmonizeMappedFirst(subject.race, "Race");
+
+        if (RaceValueCoding?) {
+            url: "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race";
+            extension[0].valueCoding : RaceValueCoding;
+            extension[0].url : "ombCategory";
+            extension[1].valueString (if subject.race?): subject.race;
+            extension[1].url (if subject.race?): "text";
+        } else {
+            url: "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race";
+            extension[0].valueString (if subject.race_display?): subject.race;
+            extension[0].url (if subject.race?): "text";           
+        }
+    }
+}
