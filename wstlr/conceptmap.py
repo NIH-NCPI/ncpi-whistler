@@ -99,6 +99,7 @@ def ObjectifyHarmony(harmony_csv, curies, study_component, url_base=system_base)
                 }
 
                 vss_key = f"{local_cs}:{line['table_name']}:{line['parent_varname']}"
+
                 vs_sources[vss_key].append({
                     "code": local_code,
                     "display": line['text']

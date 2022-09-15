@@ -9,9 +9,10 @@ from pathlib import Path
 import re
 from collections import defaultdict
 from copy import deepcopy
+import pdb 
 from wstlr.conceptmap import ObjectifyHarmony
 from wstlr.embedable import EmbedableTable
-from wstlr import dd_system_url, system_base
+from wstlr import dd_system_url, system_base, StandardizeDdType, clean_values, fix_fieldname
 
 from wstlr import system_base
 
@@ -26,7 +27,6 @@ default_colnames = {
 }
 
 def get_data(colname, row, namelist):
-    #pdb.set_trace()
     if colname in namelist:
         return row[namelist[colname]].strip()
     return None
@@ -37,15 +37,7 @@ def store_data(colname, row, dest, namelist):
     if value is not None:
         dest[colname] = value
 
-xcleaner = re.compile(";\s+")
-def clean_values(valuestring):
-    """I'm seeing some spaces in the value lists, but they aren't consistant, so we'll strip them out"""
-    if valuestring is None:
-        return ""
-    return re.sub(xcleaner, ';', valuestring.strip())
-    
-def fix_fieldname(fieldname):
-    return fieldname.lower().replace(" ", "_").replace(")", "").replace("(", "").replace("/", "_")
+
 
 class GroupBy:
     def __init__(self, config=None):
@@ -128,7 +120,6 @@ class DataDictionaryVariableCS:
         if splitter not in values:
             if '\n' in values:
                 splitter='\n'
-        #pdb.set_trace()
         split_values = values.split(splitter)
         for entry in split_values:
             if "=" in entry:
@@ -190,7 +181,7 @@ def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, co
 
     reader = csv.DictReader(dd_file, delimiter=delimiter, quotechar='"')
     reader.fieldnames = [x.lower() for x in reader.fieldnames]
-    #pdb.set_trace()
+
     table_cs_values = []
     for line in reader:
         try:
@@ -202,14 +193,20 @@ def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, co
             print(e)
             sys.exit(1)
 
-        table_cs_values.append(f"{varname}={desc.replace('=', ' is equal to ')}")
+        # When we have descriptions that are highly descriptive, we have to 
+        # be careful that they don't end up being interpreted to be enumerating
+        # variables. 
+        table_cs_values.append(f"{varname}={desc.replace('=', ' is equal to ').replace(';', '.')}")
+
         variable = {
             'varname': varname,
         }
-        #pdb.set_trace()
+
         for colname in colnames.keys():
             if colname not in ["varname", 'values']:
                 store_data(colname, line, variable, colnames)
+        if 'type' in variable:
+            variable['type'] = StandardizeDdType(variable['type'])
         if variable['desc'].strip() == "":
             variable['desc'] = variable['varname']
 
@@ -235,7 +232,7 @@ def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, co
         pdb.set_trace()
         print(f"We have already processed the table, {table_name}")
     assert(table_name not in dd_codesystems)
-    #pdb.set_trace()
+
     dd_codesystems[table_name] = DataDictionaryVariableCS(study_id, consent_group, table_name, None, ";".join(table_cs_values), url_base=url_base)
 
     return dd_content, table_cs_values
@@ -279,7 +276,6 @@ def ObjectifyCSV(csv_file, aggregators={}, grouper=None, agg_splitter=None, code
     """
     data_chunk = []
 
-    #pdb.set_trace()
     reader = csv.DictReader(csv_file, delimiter=delimiter, quotechar='"')
     reader.fieldnames = [fix_fieldname(x) for x in reader.fieldnames]
 
@@ -308,7 +304,7 @@ def ObjectifyCSV(csv_file, aggregators={}, grouper=None, agg_splitter=None, code
                     
                     varname = code_var
                     varidentifier = f"{newcol}:{varname}"
-                    #pdb.set_trace()
+
                     if varidentifier in varname_lkup:
                         varname = varname_lkup[varidentifier]
                     coding = {"code": varname, "value": line[var]}
@@ -410,6 +406,8 @@ def DataCsvToObject(config):
                 reader = csv.DictReader(f, delimiter=',', quotechar='"')
 
                 for row in reader:
+                    if 'display' not in row:
+                        print(row)
                     code_details[row['local code']] = row['display']
         dataset['study']['data-dictionary'][0]['values'].append({
             "varname": category,
@@ -431,7 +429,15 @@ def DataCsvToObject(config):
                 if 'delimiter' in config['dataset'][category]['data_dictionary']:
                     delimiter = config['dataset'][category]['data_dictionary']['delimiter']
 
-                dd, cs_values = ObjectifyDD(config['study_id'], consent_group, category, f, dd_codesystems, config['dataset'][category]['data_dictionary'].get('colnames'), delimiter=delimiter, subject_id=config['dataset'][category].get("subject_id"))
+                dd, cs_values = ObjectifyDD(config['study_id'], 
+                                                consent_group, 
+                                                category, 
+                                                f, 
+                                                dd_codesystems, 
+                                                config['dataset'][category]['data_dictionary'].get('colnames'), 
+                                                delimiter=delimiter, 
+                                                subject_id=config['dataset'][category].get("subject_id"),
+                                                url_base=config['identifier_prefix'])
                 
                 # fill out the 'values' list for each of the vars
                 for cs_entry in cs_values:
@@ -471,6 +477,8 @@ def DataCsvToObject(config):
                                 if emb.join_col not in data_chunk[0]:
                                     print(f"Unable to find column, '{emb.join_col}', options include: {data_chunk[0].keys()} Unable to embed this table.")
                                 for row in data_chunk:
+                                    if emb.join_col not in row:
+                                        print(f"Unable to find join column: {emb.join_col}. \nAvailable columns: {','.join(sorted(row.keys()))}")
                                     row[emb.table_name] = emb.get_rows(row[emb.join_col])
 
                     dataset[category] = data_chunk
@@ -486,6 +494,8 @@ def DataCsvToObject(config):
 def build_varname_lookup(dd):
     lookup = {}
     for var in dd['variables']:
+
+        var['desc'] = var['desc']
         if var['desc'].strip() != "" and var['desc'] != var['varname']:
             lookup[var['desc']] = var['varname']
         for value in var['values']:

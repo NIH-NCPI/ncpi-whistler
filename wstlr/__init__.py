@@ -5,15 +5,48 @@ from yaml import safe_load
 import sys
 from ncpi_fhir_client import fhir_auth
 import pdb
+from collections import OrderedDict
 from enum import Enum
+import re
 
 system_base = "https://nih-ncpi.github.io/ncpi-fhir-ig"
 
+class DDVariableType(Enum):
+    StringType = 1
+    IntegerType = 2
+    FloatType = 3
+    CategoricalType = 4
+    DateType = 5
+
+# The formal representation we'll pass to whistle will be the first entry in 
+# each list Because categoricals actually do require values, the underlying 
+# functionality should default to capturing strings if there are inadequate 
+# enumerated values in the data dictionary provided
+_data_dictionary_type_map = OrderedDict()
+_data_dictionary_type_map[DDVariableType.StringType] = ['string', '']
+_data_dictionary_type_map[DDVariableType.IntegerType] = ['int', 'integer']
+_data_dictionary_type_map[DDVariableType.FloatType] = ['number', 'decimal']
+_data_dictionary_type_map[DDVariableType.CategoricalType] = ['string', 'integer, encoded value']
+_data_dictionary_type_map[DDVariableType.DateType] = ['date']
 
 class TableType(Enum):
     Default = 1
     Embedded = 2
     Grouped = 3
+
+def StandardizeDdType(dd_type):
+
+    for dt in _data_dictionary_type_map.keys():
+        the_types =  _data_dictionary_type_map[dt]
+        if dd_type.lower() in _data_dictionary_type_map[dt]:
+            return _data_dictionary_type_map[dt][0]
+
+    # if it doesn't match, why not just report the problem and exit
+    sys.stderr.write(f"""Unrecognized variable type, {dd_type}. Please see """
+        """about adding this type to the categories in Whistler.\n""")
+    sys.exit(1)
+
+
 
 def determine_table_type(table_def):
     """Checks for specific keys to determine which TableType applies"""
@@ -73,8 +106,19 @@ def die_if(do_die, msg, errnum=1):
         sys.stderr.write(msg + "\n")
         sys.exit(errnum)
 
+xcleaner = re.compile(";\s+")
+def clean_values(valuestring):
+    """I'm seeing some spaces in the value lists, but they aren't consistant, so we'll strip them out"""
+    if valuestring is None:
+        return ""
+    return re.sub(xcleaner, ';', valuestring.strip())
+
+def fix_fieldname(fieldname):
+    return fieldname.lower().replace(" ", "_").replace(")", "").replace("(", "").replace("/", "_")
+
+
 def dd_system_url(url_base, term_type, study_component, table_name, varname ):
     if varname is None:
-        return f"{url_base}/{term_type}/data-dictionary/{study_component}/{table_name}"
+        return f"{url_base}/{term_type}/data-dictionary/{study_component}/{fix_fieldname(table_name)}"
     else:
-        return f"{url_base}/{term_type}/data-dictionary/{study_component}/{table_name}/{varname}"
+        return f"{url_base}/{term_type}/data-dictionary/{study_component}/{fix_fieldname(table_name)}/{fix_fieldname(varname)}"

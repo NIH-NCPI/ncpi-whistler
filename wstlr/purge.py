@@ -84,10 +84,12 @@ class ResourceDeleter:
                     # If it's an empty bundle, then there won't be a resource
                     if 'resource' in entry:
                         self.add_job_to_queue(resource, entry['resource']['id'])
-                self.launch_threads()
 
-                if response.response['total'] > 0:
-                    print(f"{resource} : {response.response['total']}")            
+                if len(response.entries) > 0:
+                    self.launch_threads()
+
+                    if response.response['total'] > 0:
+                        print(f"{resource} : {response.response['total']}")            
 
     def delete_resources(self, study_id, resource_list=None):
         global resource_order
@@ -110,7 +112,7 @@ class ResourceDeleter:
             if resource in resource_list:
                 ids = self.studyids.get_ids(study_id, resource)[::-1]
                 print(f"Deleting {len(ids)} from {resource}")
-                #pdb.set_trace()
+
                 self.ids_to_delete[resource] += ids
 
                 for id in self.ids_to_delete[resource]:
@@ -125,32 +127,33 @@ class ResourceDeleter:
             self.thread_executor.shutdown(wait=True)
 
     def retry_purge(self):
-        print("Retrying conflicted resources")
-        for i in range(0, 5):
-            # Give the database some time to catch up
-            print(f"#{i} - Sleeping a bit before retrying the deletions")
-            time.sleep(60)
-            if len(self.delayed_deletes) > 0:
-                self.ids_to_delete = self.delayed_deletes
-                self.delayed_deletes = defaultdict(list)
-                ordered_resources = []
-                ordered_resources = default_resources(self.client, ignore_resources=resource_order + ['Bundle'])
-
-                ordered_resources += resource_order[::-1]
-
-                for resource in ordered_resources:
-                    if resource in self.ids_to_delete:
-                        for id in self.ids_to_delete[resource]:
-                            self.add_job_to_queue(resource, id)
-
-                self.launch_threads()
-            else: 
-                return
-
         if len(self.delayed_deletes) > 0:
-            print("Resources have IDs that couldn't be deleted:")
-            for resource in self.delayed_deletes.keys():
-                print(f"\t{resource} - {len(self.delayed_deletes[resource])}")
+            print("Retrying conflicted resources")
+            for i in range(0, 5):
+                # Give the database some time to catch up
+                print(f"#{i} - Sleeping a bit before retrying the deletions")
+                time.sleep(60)
+                if len(self.delayed_deletes) > 0:
+                    self.ids_to_delete = self.delayed_deletes
+                    self.delayed_deletes = defaultdict(list)
+                    ordered_resources = []
+                    ordered_resources = default_resources(self.client, ignore_resources=resource_order + ['Bundle'])
+
+                    ordered_resources += resource_order[::-1]
+
+                    for resource in ordered_resources:
+                        if resource in self.ids_to_delete:
+                            for id in self.ids_to_delete[resource]:
+                                self.add_job_to_queue(resource, id)
+
+                    self.launch_threads()
+                else: 
+                    return
+
+            if len(self.delayed_deletes) > 0:
+                print("Resources have IDs that couldn't be deleted:")
+                for resource in self.delayed_deletes.keys():
+                    print(f"\t{resource} - {len(self.delayed_deletes[resource])}")
 
     def launch_threads(self):
         if self.thread_executor is not None:
@@ -176,16 +179,14 @@ class ResourceDeleter:
         if current_thread() is not main_thread():
             current_thread().name = f"{resource}/{id}"
 
-        if id == "207020":
-            pdb.set_trace()
         response = self.client.delete_by_record_id(resource, id, silence_warnings=True)
-        #pdb.set_trace()
+
         status_code = response['status_code']
         if status_code == 200:
             return
         elif status_code == 409:
             print(response['response']['issue'][0]['diagnostics'])
-            #pdb.set_trace()
+
             self.delayed_deletes[resource].append(id)
         else:
             print(response)
@@ -277,7 +278,6 @@ def exec(args=None):
     if args.resource is None or len(args.resource) == 0:
         args.resource = ['ALL']
     
-    #pdb.set_trace()
     if args.delete_files_by_tag:
         purgery.delete_resources_by_tag(args.study_name, resource_list = args.resource)
     else:
@@ -299,6 +299,4 @@ def exec(args=None):
                 print(f"{resource} : {len(response.entries)}")
         else:
             print(f"{resource} : {response.response['total']}")
-
-        #pdb.set_trace() 
         

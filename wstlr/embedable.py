@@ -5,12 +5,13 @@
 
 import collections
 from csv import DictReader
+from wstlr import fix_fieldname
 
 class EmbedableTable:
     def __init__(self, table_name, target_table, join_column):
         self.table_name = table_name
         self.target = target_table
-        self.join_col = join_column.lower()
+        self.join_col = fix_fieldname(join_column)
 
         # There can be more than one matching row per ID 
         self.rows = collections.defaultdict(list)
@@ -19,7 +20,7 @@ class EmbedableTable:
     def load_data(self, filename):
         with open(filename, 'rt') as f:
             reader = DictReader(f, delimiter=',', quotechar='"')
-            reader.fieldnames = [x.lower() for x in reader.fieldnames]
+            reader.fieldnames = [fix_fieldname(x) for x in reader.fieldnames]
             self.column_names = reader.fieldnames
 
             if self.join_col not in self.column_names:
