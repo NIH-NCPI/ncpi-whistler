@@ -92,11 +92,12 @@ def DdTable(study, dd_entry) {
 //      - desc is the descriptive text associated with it (such as the original question)
 //  
 def ProcessDatasetDefinition(study, table_name, dd_entry) {
-    var entry (if dd_entry.type = "String" and $ListLen(dd_entry.values) < 2): DdVariable(study, table_name, dd_entry, ["string"]);
-    var entry (if dd_entry.type = "String" and $ListLen(dd_entry.values) > 1): DdVariable(study, table_name, dd_entry, ["CodeableConcept"]);
-    var entry (if dd_entry.type = "Number" or dd_entry.type = "Int" or dd_entry.type="year(4)"): DdVariable(study, table_name, dd_entry, ["Quantity"]);
-    var entry (if dd_entry.type = "timestamp"): DdVariable(study, table_name, dd_entry, ["dateTime"]);
-    
+    var entry_type: $ToLower(dd_entry.type);
+    var entry (if entry_type = "string" and $ListLen(dd_entry.values) < 2): DdVariable(study, table_name, dd_entry, ["string"]);
+    var entry (if entry_type = "string" and $ListLen(dd_entry.values) > 1): DdVariable(study, table_name, dd_entry, ["CodeableConcept"]);
+    var entry (if entry_type = "number" or entry_type = "int" or dd_entry.type="year(4)"): DdVariable(study, table_name, dd_entry, ["Quantity"]);
+    var entry (if entry_type = "timestamp"): DdVariable(study, table_name, dd_entry, ["dateTime"]);
+       
     var entry (if $IsNil(dd_entry.type)): DdVariable(study, table_name, dd_entry, ["CodeableConcept"]);
     if ($IsNil(entry)) {
         out broken: entry;
@@ -114,6 +115,8 @@ def ProcessDatasetDefinition(study, table_name, dd_entry) {
 //      - variables is an array with all contained varables
 
 def ProcessDatasetDefinitions(study, dd_table) {
-    out ddmeta: ProcessDatasetDefinition(study, dd_table.table_name, dd_table.variables[]);
-    out ddmeta: DdTable(study, dd_table);
+    if (dd_table.table_name ~= "DataSet") {
+        out ddmeta: ProcessDatasetDefinition(study, dd_table.table_name, dd_table.variables[]);
+        out ddmeta: DdTable(study, dd_table);
+    }
 }

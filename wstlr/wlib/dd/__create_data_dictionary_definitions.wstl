@@ -2,7 +2,7 @@
 // the data-dictionary definitions for tables and variables. 
 def CreateDataDictionaryDefinitions(resource) {
 	if (resource.study?) {
-		$this (if resource.code-systems?): ProcessDatasetDefinitions(resource.study, resource.study.data-dictionary[]);
+		$this (if resource.study.data-dictionary?): ProcessDatasetDefinitions(resource.study, resource.study.data-dictionary[]);
 	}
 }
 

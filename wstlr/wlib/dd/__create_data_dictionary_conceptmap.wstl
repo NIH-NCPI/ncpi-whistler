@@ -4,6 +4,6 @@
 // foundation of all data-dictionary based content. 
 def CreateDataDictionaryConceptMap(resource) {
 	if (resource.study?) {
-		$this (if resource.code-systems?): ProcessDDHarmony(resource.study, resource.harmony[]);
+		$this (if resource.harmony?): ProcessDDHarmony(resource.study, resource.harmony[]);
 	}
 }
