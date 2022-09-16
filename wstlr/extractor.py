@@ -169,8 +169,13 @@ def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, co
     if colnames is None:    
         colnames = default_colnames
 
+    study_component = study_id
+    if consent_group is not None:
+        study_component = f"{study_component}-{consent_group}"
+
     dd_content = {
         "table_name": table_name,
+        "url": dd_system_url(url_base, "CodeSystem", study_component, table_name, varname=None),
         "variables": []
     }
 
@@ -413,6 +418,7 @@ def DataCsvToObject(config):
             "varname": category,
             "desc": ",".join([x.split("/")[-1] for x in config['dataset'][category]['filename'].split(",")]),
             "type": "DD-Table",
+            "url": dd_system_url(config['identifier_prefix'], "CodeSystem", study_component, category, varname=None),
             "values": []
         })
 
