@@ -370,8 +370,9 @@ def BuildConceptMap(csvfilename, curies, codesystems=[]):
     observed_mappings = set()
 
     # Skip this step if the json file is newer
-    if (not Path(outname).exists()) or \
-        (Path(csvfilename).stat().st_mtime > Path(outname).stat().st_mtime):
+    if True:
+    #if (not Path(outname).exists()) or \
+    #    (Path(csvfilename).stat().st_mtime > Path(outname).stat().st_mtime):
 
         with open(csvfilename, 'rt') as f:
             reader = DictReader(f, delimiter=',', quotechar='"')
@@ -508,7 +509,13 @@ def BuildConceptMap(csvfilename, curies, codesystems=[]):
             print(f"Writing Harmony ConceptMap: {outname}")
             with open(outname, mode='wt') as f:
                 f.write(json.dumps(concept_map, indent=2))
-    return Path(outname).stat().st_mtime
+                
+    # I've changed the dependency to use the csv timestamp instead of the JSON
+    # If we always recompile, then it's date isn't useful for dependency checks
+    # I still want to always recompile the harmony file since we don't know 
+    # whether Whistle will be rebuilt at this point and we don't want the DD 
+    # URLs to get muddled up
+    return Path(csvfilename).stat().st_mtime
 
 def Exec(argv=None):
     if argv is None:
