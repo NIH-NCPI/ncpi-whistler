@@ -356,6 +356,12 @@ def DataCsvToObject(config):
         "harmony": [],
     }
 
+    if 'remote_data_access' in config:
+        dataset['study']['remote_access'] = {
+            "type": config['remote_data_access']['access_type'],
+            "url": config['remote_data_access']['access_url']
+        }
+
     if 'study_sponsor' in config:
         dataset['study']['sponsor'] = config['study_sponsor']
 
