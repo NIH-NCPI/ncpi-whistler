@@ -56,7 +56,7 @@ def AddSourceDataObservation-${table_name}(study, id, row_data) {
     identifier[0].use: "official";
     status: "final";
     resourceType: "Observation";
-    code.coding[]: BuildCoding("74468-0", "Questionnaire form definition Document", "https://loinc.org/");
+    code.coding[]: BuildCoding("74468-0", "Questionnaire form definition Document", "https://loinc.org");
     code.coding[]: HarmonizeMapped(table_name, "DataSet");
     code.text: $$StrCat("Source data for data table, ", table_name);
     ${subject_reference}
