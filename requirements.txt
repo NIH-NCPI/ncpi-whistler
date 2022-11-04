@@ -1,4 +1,4 @@
-pyyaml
+PyYAML
 packaging
-ncpi_fhir_client
+ncpi_fhir_client @ git+https://github.com/ncpi-fhir/ncpi-fhir-client
 rich
