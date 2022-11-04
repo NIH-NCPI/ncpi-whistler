@@ -54,7 +54,9 @@ def build_references(record, idcache, parent_key=None):
 
     # Bulk Export doesn't order things as nicely as it could
     # so we may need to 
-    for key, value in record.items():
+    keys = list(record.keys())
+    for key in keys:
+        value = record[key]
         # Containers are backbone items, which will probably have an identifier that
         # doesn't work like a reference
         if key == "identifier" and parent_key is not None and parent_key != 'container':
@@ -68,6 +70,7 @@ def build_references(record, idcache, parent_key=None):
                 resource_type, id = idcomponents
 
                 del record[key]
+                # records_referenced[key] = f"{resource_type}/{id}"
                 record['reference'] = f"{resource_type}/{id}"
             else:
                 #print(value)
@@ -82,8 +85,7 @@ def build_references(record, idcache, parent_key=None):
             if type(value) is dict:
                 build_references(value, idcache, parent_key=key)
 
-            
-
+    
 
 # This is the prefix that will be used to identify the resource if it
 # possibly exists already inside the target FHIR server. This MUST be
