@@ -40,6 +40,7 @@ def run_whistle(whistlefile, inputfile, harmonydir, projectorlib, outputdir):
                     '-lib_dir_spec', projectorlib, 
                     '-verbose',
                     '-output_dir', outputdir]
+    # print(" ".join(command))
     result = run(command, capture_output=True)
 
     if result.returncode != 0:
