@@ -1,0 +1,2 @@
+# fhir_hosts
+The FHIR Hosts file is a simple YAML config containing details about the various FHIR Servers the loader may access. Each server entry contains information about authentication details, url and other information necessary to perform the various REST commands. The file, fhir_hosts, is expected to be found in the current working directory when running play. If no fhir_hosts file is found, an example will be dumped to std::out and can be captured to file using the command: ``play > fhir_hosts``
