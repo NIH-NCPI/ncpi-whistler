@@ -30,7 +30,6 @@ from wstlr.bundle import Bundle, ParseBundle, RequestType
 
 from ncpi_fhir_client.ridcache import RIdCache
 
-
 load_lock = Lock()  # Lock used for basic load functionality like ID fetching 
                     # and updating
 

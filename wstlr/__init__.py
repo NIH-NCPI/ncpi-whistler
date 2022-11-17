@@ -23,7 +23,7 @@ class DDVariableType(Enum):
 # functionality should default to capturing strings if there are inadequate 
 # enumerated values in the data dictionary provided
 _data_dictionary_type_map = OrderedDict()
-_data_dictionary_type_map[DDVariableType.StringType] = ['string', '']
+_data_dictionary_type_map[DDVariableType.StringType] = ['string', '', 'str']
 _data_dictionary_type_map[DDVariableType.IntegerType] = ['int', 'integer']
 _data_dictionary_type_map[DDVariableType.FloatType] = ['number', 'decimal']
 _data_dictionary_type_map[DDVariableType.CategoricalType] = ['string', 'integer, encoded value']
@@ -45,8 +45,6 @@ def StandardizeDdType(dd_type):
     sys.stderr.write(f"""Unrecognized variable type, {dd_type}. Please see """
         """about adding this type to the categories in Whistler.\n""")
     sys.exit(1)
-
-
 
 def determine_table_type(table_def):
     """Checks for specific keys to determine which TableType applies"""
