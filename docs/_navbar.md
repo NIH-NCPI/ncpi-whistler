@@ -13,4 +13,4 @@
   * [Writing Whistle Projections](/ref/whistle_projections)
   * [Pipeline Overview](/ref/pipeline_overview)
   * [Application Suite](/ref/suite)
-* [Tutorial](/tut/)
+* [Tutorial](https://github.com/NIH-NCPI/NCPI-Whistler-Tutorial)
