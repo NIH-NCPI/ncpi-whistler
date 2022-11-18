@@ -4,14 +4,14 @@ The FHIR *hosts* file defines FHIR Servers that can may be used as targets for N
 The file should be named, *fhir_hosts*, and reside in the current working directory for any given run. 
 
 ## Example Host Entry
-'''
+```
 dev:
     auth_type: 'auth_basic'
     username: 'someuser'
     password: 'somepassword'
     host_desc: 'Local Server'
     target_service_url: 'http://localhost:8000'
-'''
+```
 
 In the example above, we define a host that will be recognized by NCPI Whistler as **dev** which uses basic_auth. Because it uses basic_auth, we are expected to provide a *username* and a *password*. There is also a descriptive property, *host_desc*, which may be displayed during execution to remind the user which server is currently the target. 
 
