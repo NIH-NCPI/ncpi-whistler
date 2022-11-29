@@ -91,7 +91,7 @@ def get_host_config():
 
     if not host_config_filename.is_file() or host_config_filename.stat().st_size == 0:
         example_config(sys.stdout)
-        die_if(True, f"""
+        die_if(True, f""" 
 A valid host configuration file, fhir_hosts, must exist in cwd and was not 
 found. Example configuration has been written to stout providing examples 
 for each of the auth types currently supported.\n"""

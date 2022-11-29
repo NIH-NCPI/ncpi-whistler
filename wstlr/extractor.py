@@ -28,7 +28,10 @@ default_colnames = {
 
 def get_data(colname, row, namelist):
     if colname in namelist:
-        return row[namelist[colname]].strip()
+        varname = namelist[colname]
+        if varname in row:
+            if row[varname] is not None:
+                return row[varname].strip()
     return None
 
 def store_data(colname, row, dest, namelist):
@@ -160,14 +163,26 @@ class DataDictionaryVariableCS:
                 values[-1]['description'] = code
         return values
 
-def ObjectifyDD(study_id, consent_group, table_name, dd_file, dd_codesystems, colnames=None, delimiter=",", subject_id=None, url_base=system_base): 
+def ObjectifyDD(study_id, 
+                    consent_group, 
+                    table_name, 
+                    dd_file, 
+                    dd_codesystems, 
+                    colnames=None, 
+                    delimiter=",",
+                    subject_id=None, 
+                    url_base=system_base): 
     """DDs are treated differently. Rather than an array of objects, it's one object with select columns as properties
     
     Values are aggregated into key/value objects where the value is the key and the meaning is the value
     """
     global default_colnames
     if colnames is None:    
-        colnames = default_colnames
+        colnames = {}
+    
+    for key in default_colnames:
+        if key not in colnames:
+            colnames[key] = default_colnames[key]
 
     study_component = study_id
     if consent_group is not None:
@@ -510,6 +525,7 @@ def build_varname_lookup(dd):
         var['desc'] = var['desc']
         if var['desc'].strip() != "" and var['desc'] != var['varname']:
             lookup[var['desc']] = var['varname']
+
         for value in var['values']:
 
             code = value['code']
