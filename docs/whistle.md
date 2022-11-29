@@ -1,5 +1,5 @@
 # Whistle - Google HCLS Data Harmonization
-[Whistle](/#/whistle) is google's Data Transformation Language which can be used to transform arbitrary JSON objects into FHIR compliant JSON objects. In addition to providing a language specific to data transformations, it also integrates nicely with [FHIR ConceptMaps](http://hl7.org/fhir/R4/conceptmap.html) making it a great choice for use in harmonizing the various research datasets into a much more consistent, FHIR representation. 
+[Whistle](https://github.com/GoogleCloudPlatform/healthcare-data-harmonization) is google's Data Transformation Language which can be used to transform arbitrary JSON objects into FHIR compliant JSON objects. In addition to providing a language specific to data transformations, it also integrates nicely with [FHIR ConceptMaps](http://hl7.org/fhir/R4/conceptmap.html) making it a great choice for use in harmonizing the various research datasets into a much more consistent, FHIR representation. 
 
 ## Whistle Installation
 Whistle is an independent software application with its own requirements which must be installed prior to being built. Please note that some of these, such as Java, may already be installed or can be installed in other ways than described below. 
