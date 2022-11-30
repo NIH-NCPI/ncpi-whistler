@@ -24,6 +24,7 @@ from wstlr.idcache import IdCache
 from wstlr.bundle import Bundle, ParseBundle, RequestType
 
 from ncpi_fhir_client.ridcache import RIdCache
+import os
 
 import pdb
 
@@ -271,6 +272,13 @@ def exec():
         whistle_output = output_directory / f"{config['output_filename']}.output.json"
 
         if args.force or not whistle_output.exists() or whistle_output.stat().st_mtime < input_file_ts:
+            response = run(['which', 'whistle'], capture_output=True)
+            if response.returncode != 0:
+                print("Unable to find whistle in the PATH")
+                print("PATH: " + "\n\t".join(os.getenv("PATH").split(":")))
+                sys.exit()
+            else: 
+                print(f"Whistle found: {response.stdout.decode().strip()}")
             result_file = run_whistle(whistlefile=config['whistle_src'], 
                         inputfile=str(whistle_input), 
                         harmonydir=config['code_harmonization_dir'], 
