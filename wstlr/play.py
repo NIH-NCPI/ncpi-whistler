@@ -34,14 +34,14 @@ import pdb
 #       -lib_dir_spec projector_library/ 
 #       -verbose 
 #       --output_dir output
-def run_whistle(whistlefile, inputfile, harmonydir, projectorlib, outputdir):
-    command = ['whistle', '-harmonize_code_dir_spec', harmonydir,
+def run_whistle(whistlefile, inputfile, harmonydir, projectorlib, outputdir, whistle_path='whistle'):
+    command = [whistle_path, '-harmonize_code_dir_spec', harmonydir,
                     '-input_file_spec', inputfile,
                     '-mapping_file_spec', whistlefile,
                     '-lib_dir_spec', projectorlib, 
                     '-verbose',
                     '-output_dir', outputdir]
-    # print(" ".join(command))
+    #print(" ".join(command))
     result = run(command, capture_output=True)
 
     if result.returncode != 0:
@@ -273,17 +273,21 @@ def exec():
 
         if args.force or not whistle_output.exists() or whistle_output.stat().st_mtime < input_file_ts:
             response = run(['which', 'whistle'], capture_output=True)
+            whistle_path = 'whistle'
             if response.returncode != 0:
                 print("Unable to find whistle in the PATH")
                 print("PATH: " + "\n\t".join(os.getenv("PATH").split(":")))
                 sys.exit()
             else: 
-                print(f"Whistle found: {response.stdout.decode().strip()}")
+                whistle_path = response.stdout.decode().strip()
+                print(f"Whistle found: {whistle_path}")
+
             result_file = run_whistle(whistlefile=config['whistle_src'], 
                         inputfile=str(whistle_input), 
                         harmonydir=config['code_harmonization_dir'], 
                         projectorlib=config['projector_lib'], 
-                        outputdir=str(output_directory))
+                        outputdir=str(output_directory),
+                        whistle_path=whistle_path)
 
             # We really only want to run this when we generate a new Whistle file,
             # so we'll do this work separately from the other consumers
