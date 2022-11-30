@@ -81,7 +81,6 @@ def check_latest_update(config_filename, config, cm_timestamp = None):
     for wst in Path(config['projector_lib']).glob("*.wstl"):
         latest_update = get_latest_date(wst, latest_update)
     
-    print(f"The latest: {latest_update}")
     return latest_update
 
 def example_config(writer, auth_type=None):
@@ -280,7 +279,7 @@ def exec():
                 sys.exit()
             else: 
                 whistle_path = response.stdout.decode().strip()
-                print(f"Whistle found: {whistle_path}")
+                print(f"Whistle Path: {whistle_path}")
 
             result_file = run_whistle(whistlefile=config['whistle_src'], 
                         inputfile=str(whistle_input), 
