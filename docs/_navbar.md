@@ -14,3 +14,5 @@
   * [Pipeline Overview](/ref/pipeline_overview)
   * [Application Suite](/ref/suite)
 * [Tutorial](https://github.com/NIH-NCPI/NCPI-Whistler-Tutorial)
+* [NCPI FHIR IG](https://nih-ncpi.github.io/ncpi-fhir-ig/)
+* [HL7 FHIR](https://hl7.org/fhir/)
