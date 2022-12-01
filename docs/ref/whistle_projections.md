@@ -19,6 +19,14 @@ Whistler employs a few additional conventions in the code it generates:
 * Resource producing functions, such as those created by buildsrcobs or buildsrcqr are named according to the type of resource they create, prefixed by 'wlib_dd_'. 
 * All whistle code carries the extension, wstl.
 
+## The Importance of the Meta.tag Property
+All FHIR resources have a meta property which is used for a number of different purposes. One of the meta object's properties is the tag which is a list. Whistler uses this tag property to *tag* resources it loads so that it can catalog resources in a FHIR server more selectively. This catalog process is key to establishing referential integrity during loads and if the server has data from many studies, it could result in a lot of unnecessary load times (while it queries the FHIR server for a potentially large number of irrelevant resources). 
+
+As a result, by default, Whistler will error out during the post-whistle sanity check if it encounters a resource without a meta.tag property. 
+
+## FHIR Resources Require Whistler To Successfully Load
+While most of the output from a Whistler run will be fully compliant with FHIR (assuming you wrote valid projections), any reference to a resource from the same dataset will be Whistler specific and will not validate correctly against a normal FHIR server. When Whistler loads resources, it will replace those special reference identifiers with valid references that point to the correct resource, or, if the resource can't be found in the target server, the resource containing that missing reference will be pushed to the back of the queue in the hope that the referenced resource will get loaded before it comes around once again. 
+
 ## Useful Whistle Documentation Links
 [Whistle Language Reference](https://github.com/GoogleCloudPlatform/healthcare-data-harmonization/blob/master/mapping_language/doc/reference.md)
 [Whistle Functions](https://github.com/GoogleCloudPlatform/healthcare-data-harmonization/blob/master/mapping_language/doc/builtins.md)
