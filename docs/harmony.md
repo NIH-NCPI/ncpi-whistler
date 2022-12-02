@@ -1,5 +1,5 @@
 # Whistle and Harmony
-Whistle employs the use of [FHIR ConceptMaps](http://hl7.org/fhir/R4/conceptmap.html) to perform data transformations from a local values from a dataset into a terms from one or more public ontologies. To provide access to those translations provided by those ConceptMaps, whistle provides a couple of [functions[(https://github.com/GoogleCloudPlatform/healthcare-data-harmonization/blob/master/mapping_language/doc/reference.md#lookup-syntax)]. 
+Whistle employs the use of [FHIR ConceptMaps](http://hl7.org/fhir/R4/conceptmap.html) to perform data transformations from a local values from a dataset into a terms from one or more public ontologies. To provide access to those translations provided by those ConceptMaps, whistle provides a couple of [functions](https://github.com/GoogleCloudPlatform/healthcare-data-harmonization/blob/master/mapping_language/doc/reference.md#lookup-syntax). 
 
 The whistle authors recommend capturing those harmony mappings in a simple CSV Format.
 
