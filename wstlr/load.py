@@ -389,7 +389,7 @@ class ResourceLoader:
             with load_lock:
                 print(f"Skipped {skipped_warnings} warnings and {skipped_errors}.")
 
-                pdb.set_trace()
+                #pdb.set_trace()
             sys.exit(1)
         return result
 

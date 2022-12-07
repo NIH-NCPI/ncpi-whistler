@@ -89,7 +89,7 @@ class ResourceInspector:
         if idval in self.identifiers[resourcetype]:
             print(resourcetype)
             print(self.identifiers[resourcetype])
-            pdb.set_trace()
+            #pdb.set_trace()
 
         ReportError(idval in self.identifiers[resourcetype], resource, f"The following identifier appears multiple times: \n{pformat(identifier)}")
         self.identifiers[resourcetype].add(idval)

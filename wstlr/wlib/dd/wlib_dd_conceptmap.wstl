@@ -70,6 +70,10 @@ def BuildHarmonyMapping(study, mapping) {
 //  harmony - The complete contents of the harmony concept map
 def BuildHarmonyConceptMap(study, harmony) {
     meta.tag[]: StudyMeta(study);
+    {% if context['profiles'] -%}
+    meta.profile[]: "https://nih-ncpi.github.io/ncpi-fhir-ig/StructureDefinition/study-data-dictionary-harmony"
+    {% endif %}
+
     identifier: Key_Identifier(study, "ConceptMap", $StrCat(study.id, ".concept-map"));
     identifier.use: "official";
     status: "active";

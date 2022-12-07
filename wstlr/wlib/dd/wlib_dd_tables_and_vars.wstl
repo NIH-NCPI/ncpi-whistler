@@ -22,9 +22,9 @@ def DdVariableId(study_id, table_name, varname) {
 //  permDataType - The data type(s) expected to be found for the variable's value
 def DdVariable(study, table_name, dd_entry, permDataType, code_system) {
     meta.tag[]: StudyMeta(study);
-    {% if context['profile'] %}
+    {% if context['profiles'] -%}
         meta.profile[]: "https://ncpi-fhir.github.io/ncpi-fhir-study-summary-ig/StructureDefinition/study-dd-variable"
-    {% endif %}
+    {% endif -%}
 
     identifier[]: Key_Identifier(study, "ObservationDefinition", DdVariableId(study.id, table_name, dd_entry.varname));
     identifier[0].use: "official";
@@ -70,7 +70,7 @@ def BuildObservationDefReference(study, table_name, dd_var) {
 def DdTable(study, dd_entry) {
     meta.tag[]: StudyMeta(study);
 
-    {% if context['profile'] %}
+    {% if context['profiles'] -%}
         meta.profile[]: "https://ncpi-fhir.github.io/ncpi-fhir-study-summary-ig/StructureDefinition/study-dd-table"
     {% endif %}
  

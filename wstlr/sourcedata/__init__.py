@@ -1,5 +1,6 @@
 # Classes to support building row level data entries
 
+from wstlr import TableType, determine_table_type
 from wstlr.extractor import fix_fieldname
 import sys
 
@@ -39,5 +40,52 @@ def identifier_columns(key_columns, subject_id, varpath='row_data'):
             key_columns = [x.strip() for x in key_columns.split(",")]
         else:
             key_columns = [key_columns]
-    
     return ", \".\", ".join(f"{varpath}.{fix_fieldname(x)}" for x in key_columns)
+
+
+class DdVariable:
+    def __init__(self, variable):
+        self.varname = variable['varname']
+        self.vartype = variable['type']
+        self.desc = variable['desc']
+        self.values_url = variable.get("values-url")
+        self.fieldname = fix_fieldname(self.varname)
+
+        if 'values' in variable and len(variable['values']) > 1:
+            self.vartype = "enumeration"
+        elif self.vartype in _string_types:
+            self.vartype = "string"
+        elif self.vartype in _integer_types:
+            self.vartype = "integer"
+        elif self.vartype in _float_types:
+            self.vartype = "float"
+class DdTable:
+    def __init__(self, ddtable, ddconfig, id_colname):
+        self.table_name = ddtable['table_name']
+
+        self.desc = ddtable.get("desc")
+        if self.desc is None:
+            self.desc = ddconfig['filename']
+
+        self.id_col = ddconfig.get('subject_id')
+        if self.id_col is None:
+            self.id_col = id_colname
+        
+        if self.id_col is None:
+            self.id_col = "SUBJECTID_REPLACE_ME!!!"
+        self.variables = []
+
+        self.colnames = identifier_columns(id_colname, id_colname, 'row')
+        if 'key_columns' in ddconfig:
+            self.colnames = identifier_columns(ddconfig['key_columns'], id_colname, 'row') #[fix_fieldname(x) for x in ddconfig['key_columns'].split(",")]
+        self.table_type = determine_table_type(ddconfig)
+        self.parent_table = self.table_name
+        if self.table_type == TableType.Embedded:
+            self.parent_table = ddconfig['embed']['dataset']
+            #self.colnames = [fix_fieldname(x) for x in ddconfig['embed']['colname'].split(",")]
+            #self.colnames = identifier_columns(ddconfig['embed']['colname'], id_colname, 'row') 
+        elif self.table_type == TableType.Grouped:
+            self.colnames = identifier_columns(ddconfig['group_by'], id_colname, 'row') #[fix_fieldname(x) for x in ddconfig['group_by'].split(",")]
+
+        for variable in ddtable['variables']:
+            self.variables.append(DdVariable(variable))

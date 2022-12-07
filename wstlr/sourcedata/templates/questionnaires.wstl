@@ -1,0 +1,166 @@
+def BuildQuestionnaireURL(study, table_name) {
+    $this: $StrCat(study.identifier-prefix, "/data-dictionary/rl-questionnaire/", study.id, "/", $ToLower(table_name));
+}
+
+// There are a few ways to handle values that don't work as numbers, so 
+// we'll just make a function to use them so it will be easier to change. 
+def QuestionnaireNotNumber(value) {
+    valueCoding: BuildCoding("not-a-number", "Not a Number (NaN)", "http://terminology.hl7.org/CodeSystem/data-absent-reason");
+    // valueString: value
+}
+
+// Questionnaire Response Item helpers
+def ReportQuestionnaireItemBasic(study, varname, text, value) {
+    linkId: varname;
+    text: text;
+    answer[].valueString: value;
+}
+def ReportQuestionnaireItemCategorical(study, varname, text, code) {
+
+    var coding: HarmonizeSelectByPrefix(study, code, varname);
+    linkId: varname;
+    text: text;
+    if (coding?) {
+        answer[].valueCoding: coding[0];
+
+    } 
+}
+
+def ReportQuestionnaireItemInteger(study, varname, text, required value) {
+    linkId: varname;
+    text: text;
+    if ($Type(value)="number") {
+         answer[].valueInteger: $ParseInt(value);
+    } 
+}
+
+def ReportQuestionnaireItemQuantity(study, varname, text, required value) {        
+    linkId: varname;
+    text: text;
+
+    if ($Type(value)="number") {
+        answer[].valueQuantity.value: $ParseFloat(value);
+    } 
+}
+
+// Questionnaire Item Construction
+def BuildQuestionnaireItemBasic(study, table_name, varname, text, datatype) {
+    linkId: varname;
+    text: text;
+    type: $ToLower(datatype);
+}
+def BuildQuestionnaireItemCategorical(study, table_name, varname, text, datatype, url) {
+    linkId: varname;
+    text: text;
+    type: "choice";
+    answerValueSet: url;
+}
+
+
+// Enumerate over each of the tables
+// Required input: 
+//   tables - list of DdTable objects
+//   id_colname
+{% for table in tables %} 
+def AddSourceDataQuestionnaire-{{table.table_name}}(study) {
+    var table_name: "{{table.table_name}}";
+    meta.tag[]: StudyMeta(study);
+
+    identifier[]: Key_Identifier(study, "Questionnaire", $StrCat(study.id, ".", table_name));
+    identifier[0].use: "official";
+
+    url: BuildQuestionnaireURL(study, table_name);
+    name: table_name;
+    title: "{{table.desc}}";
+    status: "active";
+    subjectType: ["Patient"];
+    code[]: BuildCoding("74468-0", "Questionnaire form definition Document", "https://loinc.org/");
+    code[]: HarmonizeMapped(table_name, "DataSet");
+    resourceType: "Questionnaire";
+
+    // Variables
+    {% for var in table.variables -%}
+      {% if var.vartype == "enumeration" -%} 
+    item[]: BuildQuestionnaireItemCategorical(study, table_name, "{{var.varname}}", "{{var.desc}}", "string", "{{var.values_url}}");
+      {% elif var.vartype == "string" -%} 
+    item[]: BuildQuestionnaireItemBasic(study, table_name, "{{var.varname}}", "{{var.desc}}", "string");
+      {% elif var.vartype == "integer" -%}
+    item[]: BuildQuestionnaireItemBasic(study, table_name, "{{var.varname}}", "{{var.desc}}", "integer");
+      {% elif var.vartype == "float" -%}
+    item[]: BuildQuestionnaireItemBasic(study, table_name, "{{var.varname}}", "{{var.desc}}", "decimal");
+      {% else -%}
+    //Unknown vartype: {{var.vartype}}
+    item[]: BuildQuestionnaireItemCategorical(study, table_name, "{{var.varname}}", "{{var.desc}}, "string");
+      {% endif -%}
+    {% endfor -%}
+}
+def AddSourceDataQuestionnaireResponse-{{table.table_name}}(study, row) {
+    var table_name: "{{table.table_name}}";
+    var id: $StrCat({{table.colnames}});
+    meta.tag[]: StudyMeta(study);
+
+    identifier: Key_Identifier(study, "QuestionnaireResponse", $StrCat(study.id, ".", table_name, ".", "source-data", ".", id));
+    identifier.use: "official";
+    status: "completed ";
+    resourceType: "QuestionnaireResponse";
+    questionnaire: BuildQuestionnaireURL(study, table_name);
+    subject: Reference_Key_Identifier(study, "Patient", row.{{table.id_col}});
+
+    // Variables
+    {% for var in table.variables -%}
+      {% if var.vartype == "enumeration" -%} 
+    item[]: ReportQuestionnaireItemCategorical(study, "{{var.varname}}", "{{var.desc}}", row.{{var.fieldname}});
+      {% elif var.vartype == "string" -%} 
+    item[]: ReportQuestionnaireItemBasic(study, "{{var.varname}}", "{{var.desc}}", row.{{var.fieldname}});
+      {% elif var.vartype == "integer" -%}
+    item[]: ReportQuestionnaireItemInteger(study, "{{var.varname}}", "{{var.desc}}", row.{{var.fieldname}});
+      {% elif var.vartype == "float" -%}
+    item[]: ReportQuestionnaireItemQuantity(study, "{{var.varname}}", "{{var.desc}}", row.{{var.fieldname}});
+      {% else -%}
+    //Unknown vartype: {{var.vartype}}
+    item[]: ReportQuestionnaireItemBasic(study, "{{var.varname}}", "{{var.desc}}", row.{{var.fieldname}});
+      {% endif -%}
+    {% endfor -%}
+}
+{% endfor %}
+
+// Enumerate over each of the tables for processing individual tables
+// Required input: 
+//   tables - list of DdTable objects
+//   id_colname
+{% for table in tables -%} 
+{% if table.table_type == TableType.Embedded -%} 
+def ProcessSourceData-QR-embedded-{{table.table_name}}(study, row) {
+    //var id: $StrCat({{table.colnames}});
+    out source_data: AddSourceDataQuestionnaireResponse-{{table.table_name}}(study, row.{{table.table_name}}[]);
+}
+{% elif table.table_type == TableType.Grouped -%}
+def ProcessSourceData-QR-grouped-{{table.table_name}}(study, row) {
+    out source_data: AddSourceDataQuestionnaireResponse-{{table.table_name}}(study, row.content[]);
+}
+{% endif %}
+def ProcessQuestionnairePrep-{{table.table_name}}(study, rows) {
+  out source_data: AddSourceDataQuestionnaire-{{table.table_name}}(study);
+
+  {% if table.table_type == TableType.Default -%}
+  //var id: $StrCat({{table.colnames}});
+  out source_data: AddSourceDataQuestionnaireResponse-{{table.table_name}}(study, rows[]);
+  {% elif table.table_type == TableType.Embedded -%}
+  out source_data: ProcessSourceData-QR-embedded-{{table.table_name}}(study, rows[]);
+  {% elif table.table_type == TableType.Grouped -%}
+  //var id: $StrCat({{table.colnames}});
+  out source_data: ProcessSourceData-QR-grouped-{{table.table_name}}(study, rows[]);
+  {% endif %}
+}
+{% endfor -%} 
+
+// Enumerate over tables one last time to build the main process function
+def BuildRawDataQR(resource) {
+{% for table in tables -%}
+  {% if table.table_type == TableType.Embedded %}
+  $this: ProcessQuestionnairePrep-{{table.table_name}}(resource.study, resource.{{table.parent_table}});
+  {% else -%}
+  $this: ProcessQuestionnairePrep-{{table.table_name}}(resource.study, resource.{{table.table_name}});
+  {% endif -%}
+{% endfor %}
+}

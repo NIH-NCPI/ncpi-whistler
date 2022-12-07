@@ -78,8 +78,8 @@ def exec(args=None):
                 choices=list(module_options.keys()) + ["ALL"],
                 default=[],
                 help="""Indicate which modules to provide (ALL by default) """)
-    parser.add_argument("--no-profile", 
-                action='store_false',
+    parser.add_argument("--no-profiles", 
+                action='store_true',
                 help="""By default, resource code will use NCPI profiles. """
                     """--no-profile indicates to use only bare FHIR """
                     """resources and thus, don't require the NCPI IG to be"""
@@ -97,7 +97,7 @@ def exec(args=None):
     print(f"Selected modules: {','.join(args.modules)}\n")
 
     whistle_context = {
-        "profiles": args.no_profile == False
+        "profiles": not args.no_profiles
     }
     for config_file in args.config:
         config = safe_load(config_file)
