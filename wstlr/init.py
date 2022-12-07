@@ -11,6 +11,7 @@ from wstlr import die_if
 import pdb
 
 from argparse import ArgumentParser, FileType
+from jinja2 import Template
 
 # The files() functionality only works in 3.10 and later but the backport
 # works fine for earlier versions
@@ -31,10 +32,13 @@ else:
 import shutil 
 from pathlib import Path
 
-def copy_files(module_path, dest):
+def copy_files(module_path, dest, context):
     """Copy files from the library module to the user's project directory"""
     for f in files(module_path).iterdir():
-        shutil.copy(f, dest)
+        template = Template(f.open('rt').read())
+        with (dest / f.name).open('wt') as outf:
+            print(outf.name)
+            outf.write(template.render(context=context) + "\n")
 
 def module_names(root_path="wstlr.wlib"):
     """List the different modules available so we can make them a choice in"""
@@ -74,6 +78,12 @@ def exec(args=None):
                 choices=list(module_options.keys()) + ["ALL"],
                 default=[],
                 help="""Indicate which modules to provide (ALL by default) """)
+    parser.add_argument("--no-profiles", 
+                action='store_true',
+                help="""By default, resource code will use NCPI profiles. """
+                    """--no-profile indicates to use only bare FHIR """
+                    """resources and thus, don't require the NCPI IG to be"""
+                    """loaded in order for the resources to validate""")
 
     args = parser.parse_args(args=args)
 
@@ -86,6 +96,9 @@ def exec(args=None):
 
     print(f"Selected modules: {','.join(args.modules)}\n")
 
+    whistle_context = {
+        "profiles": not args.no_profiles
+    }
     for config_file in args.config:
         config = safe_load(config_file)
         
@@ -105,4 +118,4 @@ def exec(args=None):
             module_path = module_options[module]
 
             print(f"Creating files for module, {module}")
-            copy_files(str(module_options[module]), projector_dir)
+            copy_files(str(module_options[module]), projector_dir, context=whistle_context)
