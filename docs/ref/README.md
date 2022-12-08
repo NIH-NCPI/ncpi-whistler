@@ -6,22 +6,14 @@ NCPI Whistler is a python based pipeline designed to transform research data int
 
 NCPI Whistler provides an end-to-end solution for converting the research input files into a format suitable for passing to Whistle code, building the ConceptMaps for proper harmonization, running whistle and loading the output into a FHIR server.  
 
-## Installing Whistler
-NCPI Whistler is a python 3 application. As such, it should run on any modern system. 
+# Installing Whistler
+To learn more about installing whistler, please see the [installation instructions](/installation).
 
-### Prerequisites
-- Python 3.7 or later
-- [Whistle](/#/whistle)
-- Various Python libraries (which should be automatically installed when using pip)
-  - PyYAML
-  - packaging
-  - ncpi_fhir_client
-  - rich
-
-### Basic Installation
-The easiest way to install the application itself is to clone this repository, cd into the repository's root directory and run the following command: 
-
-``pip install .``
-
-### Alternate Installation via Docker
-I have put together a docker image and a set of scripts that allows users to simply build a docker image and copy some basic shell scripts that handle the docker calls for you, allowing you to run the exact same commands as you would using the regular python application suite. That can be found [here](https://github.com/NIH-NCPI/dockerized-whistler)
+# Table of Contents
+* [FHIR Hosts File](/ref/fhir_hosts)
+* [Whistle Harmony Files](/ref/harmony_files)
+* [Project Config File](/ref/project_config)
+* [Data Dictionary](/ref/data_dictionary)
+* [Writing Whistle Projections](/ref/whistle_projections)
+* [Pipeline Overview](/ref/pipeline_overview)
+* [Application Suite](/ref/suite)

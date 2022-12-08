@@ -1,5 +1,6 @@
 * NCPI Whistler
   * [Overview](/)
+  * [Installation](/installation)
   * [FHIR Hosts File](/fhir_hosts)
   * [Whistle Harmony](/harmony)
   * [Whistler Tools](whistler)

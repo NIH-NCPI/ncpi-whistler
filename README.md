@@ -1,27 +1,12 @@
-# ncpi-whistler
-Data Harmonization Pipeline For NCPI Data Into FHIR
+# NCPI Whistler
+NCPI Whistler provides a complete pipeline to transform research data tables into FHIR resources loaded into a FHIR Server using a combination of standard Python scripting, [Whistle](https://github.com/GoogleCloudPlatform/healthcare-data-harmonization) and the standard FHIR Rest API for loading data into the target FHIR server. 
 
-[Whistle](https://github.com/GoogleCloudPlatform/healthcare-data-harmonization) is google's Data Transformation Language which can be used to transform arbitrary JSON objects into FHIR compliant JSON objects. In addition to providing a language specific to data transformations, it also integrates nicely with [FHIR ConceptMaps](http://hl7.org/fhir/R4/conceptmap.html) making it a great choice for use in harmonizing the various research datasets into a much more consistant, FHIR representation. 
+Whistle is google's Data Transformation Language which can be used to transform arbitrary JSON objects into FHIR compliant JSON objects. In addition to providing a language specific to data transformations, it also integrates nicely with [FHIR ConceptMaps](http://hl7.org/fhir/R4/conceptmap.html) making it a great choice for use in harmonizing the various research datasets into a much more consistant, FHIR representation. 
 
 In order to employ whistle, however, the data must be formatted as JSON and any code transformations must be provided as ConceptMaps. NCPI-Whistler aims to do just that as well as aide users in the delivery of those FHIR resources into the FHIR server of choice. 
 
-## Installation
-NCPI Whistler is a python application. There have been some minor changes to support 3.10, but it probably runs fine on version 3.7 or later. The easiest way to install the application itself is to clone this repository, cd into the repository's root directory and run the following command: 
-
-``pip install .``
-
-### Whistle Installation
-A key component of Whistler is the Alphabet's Whistle application, which has its own requirements (please note that some of these, such as Java, may already be installed or can be installed in other ways that described below): 
-
-* [Go](https://go.dev/doc/install)
-* [Java SDK 8 or Higher](https://openjdk.org/install/)
-* [Protocol Buffers v3.11](https://github.com/protocolbuffers/protobuf/releases/tag/v3.11.4)
-* [clang 11](https://clang.llvm.org/get_started.html)
-
-I have also put together docker image and shell script for those who prefer not to install the libraries above (or have difficulty installing them on their target platform). This can be found [here](https://github.com/NIH-NCPI/dockerized-whistle)
-
-### Alternate Installation via Docker
-I have put together a docker image and a set of scripts that allows users to simply build a docker image and copy some basic shell scripts that handle the docker calls for you, allowing you to run the exact same commands as you would using the regular python application suite. That can be found [here](https://github.com/NIH-NCPI/dockerized-whistler)
+## Installing Whistler
+Whistler can be installed as a native python application or as a docker container. Please see the manual for [installation instructions](https://nih-ncpi.github.io/ncpi-whistler/#/installation).
 
 ## Extraction
 Whistle transforms JSON into JSON. As such, the input file must be a JSON file. NCPI-Whistler provides a simple YAML configuration for the dataset which is used to extract data from the CSV format into JSON objects suitable for use by Whistle functions. The goal here will be to provide a rich system to support many different data layouts and configurations. 

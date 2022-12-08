@@ -38,13 +38,13 @@ While the transformation itself can be run as a single command, there are a numb
 
 Read more about the [process](/ref/pipeline_overview) and how whistler moves data through the different steps. 
 
-
 # Application Suite
 NCPI Whistler is actually a suite or programs designed to perform different aspects of the FHIR transformation and load process. These tools include:
   * play - The main script that runs the pipeline to create harmony concept maps, extracts data from CSV, runs whistle and (optionally) loads data into a FHIR server. 
   * delfhir - A tool that is designed to help mass delete FHIR resources.
   * whistle generation - There are several tools designed to initialize a whistle projection, create [NCPI IG metadata](https://nih-ncpi.github.io/ncpi-fhir-ig/study_metadata.html) resources based on a study's actual data-dictionary as well as functions that are recommended for creating identifiers, filtering items out of lists, etc. 
 
-
+# Reference Manual
+There is a fairly complete [reference manual](/ref/) available that covers details about the various aspects of creating a whistler project. 
 
 
