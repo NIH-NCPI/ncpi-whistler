@@ -1,2 +1,3 @@
 requirements.txt
 recursive-include wstlr/wlib *
+recursive-include wstlr/sourcedata/templates *
