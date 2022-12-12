@@ -43,7 +43,7 @@ NCPI Whistler is actually a suite or programs designed to perform different aspe
   * play - The main script that runs the pipeline to create harmony concept maps, extracts data from CSV, runs whistle and (optionally) loads data into a FHIR server. 
   * delfhir - A tool that is designed to help mass delete FHIR resources.
   * whistle generation - There are several tools designed to initialize a whistle projection, create [NCPI IG metadata](https://nih-ncpi.github.io/ncpi-fhir-ig/study_metadata.html) resources based on a study's actual data-dictionary as well as functions that are recommended for creating identifiers, filtering items out of lists, etc. 
-  * igload - Load definitions from one or more FHIR IGs into a FHIR server. 
+  * [igload](/ref/igload) - Load definitions from one or more FHIR IGs into a FHIR server. 
 
 # Reference Manual
 There is a fairly complete [reference manual](/ref/) available that covers details about the various aspects of creating a whistler project. 
