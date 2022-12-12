@@ -8,6 +8,9 @@ In order to employ whistle, however, the data must be formatted as JSON and any 
 ## Installing Whistler
 Whistler can be installed as a native python application or as a docker container. Please see the manual for [installation instructions](https://nih-ncpi.github.io/ncpi-whistler/#/installation).
 
+## Whistler Walk-through
+If you are curious about whether Whister is right for your project, there is a [tutorial](https://nih-ncpi.github.io/NCPI-Whistler-Tutorial) available to help you get started. 
+
 ## Extraction
 Whistle transforms JSON into JSON. As such, the input file must be a JSON file. NCPI-Whistler provides a simple YAML configuration for the dataset which is used to extract data from the CSV format into JSON objects suitable for use by Whistle functions. The goal here will be to provide a rich system to support many different data layouts and configurations. 
 

@@ -26,7 +26,8 @@ setup(
             'inspectjson = wstlr.inspector:exec',
             'buildsrcobs = wstlr.sourcedata.obscomp:exec',
             'buildsrcqr = wstlr.sourcedata.questionnaire:exec',
-            'init-play = wstlr.init:exec'
+            'init-play = wstlr.init:exec',
+            'igload = wstlr.igload:exec'
         ]
     }
 )

@@ -340,14 +340,15 @@ class ResourceLoader:
                                             identifier=resource_identifier,
                                             identifier_system=system,
                                             identifier_type=identifier_type,
-                                            validate_only=validate_only)
+                                            validate_only=validate_only,
+                                            retry_count=1)
                 if result['status_code'] < 300:
                     retry_count = 0
 
                 elif result['status_code'] == 429:
-                    print(f"\t492 : {resource_type}:{resource_identifier}")
+                    print(f"\t492 : {resource_type}:{resource_identifier} Too many requests")
                     if retry_count == 0:
-                        print("\tNot actually going to try again. So..ugh")
+                        print("\tThe server is struggling for some reason and has refused our request too many times. Exiting.")
                         pdb.set_trace()
                     sleep(35)
                 else:

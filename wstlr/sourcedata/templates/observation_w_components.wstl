@@ -71,7 +71,9 @@ def AddSourceDataObservation-{{table.table_name}}(study, id, row_data) {
     var table_name: "{{table.table_name}}";
     var subject_id: row_data.{{table.id_col}};
     meta.tag[]: StudyMeta(study);
-
+    {% if use_profiles -%}
+        meta.profile[]: "https://nih-ncpi.github.io/ncpi-fhir-ig/StructureDefinition/raw-data-observation"
+    {% endif -%}
     identifier[]: Key_Identifier(study, "Observation", $StrCat(study.id, ".", table_name, ".", id , ".", subject_id));
     identifier[0].use: "official";
     status: "final";
