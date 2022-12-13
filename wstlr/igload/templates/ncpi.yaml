@@ -8,6 +8,7 @@ NCPI-FHIR-IG:
   # the resource items which will be downloaded and subsequently loaded into 
   # the FHIR server
   url: https://nih-ncpi.github.io/ncpi-fhir-ig
+  # 
   # If the IG exists locally on your machine, you can point to that directory
   # instead. This assumes that the products to be loaded are found in the 
   # output directory and have been zipped up according to standard publisher
@@ -25,4 +26,4 @@ NCPI-FHIR-IG:
   # If there are items that should be ignored, at them to the exclude-wildcards
   # Each entry will be treated as surrounded by wildcards. 
   exclude-wildcards:
-    example
+  -  example
