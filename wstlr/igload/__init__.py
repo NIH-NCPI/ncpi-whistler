@@ -79,7 +79,7 @@ def exec():
         sys.exit(0)
 
     if args.generate_default:
-        print((Path(__file__).resolve().parent / "ig.yaml").open('rt').read() + "\n")
+        print((Path(__file__).resolve().parent / "templates" / "ncpi.yaml").open('rt').read() + "\n")
         sys.exit(0)
 
     content = safe_load(args.content)
