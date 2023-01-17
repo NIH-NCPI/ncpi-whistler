@@ -82,9 +82,14 @@ def exec():
         print((Path(__file__).resolve().parent / "templates" / "ncpi.yaml").open('rt').read() + "\n")
         sys.exit(0)
 
+    if args.content is None:
+        response = input("No content file provided, do you want to load the default IG site? (Y/n) ")
+        if response == "" or response.lower()[0] == 'y':
+            args.content = open(str(Path(__file__).resolve().parent / "templates" / "ncpi.yaml"), 'rt')
+        else:
+            sys.stderr.write("No site configuration provided. Unable to continue")
+            sys.exit(1)
     content = safe_load(args.content)
-    #pdb.set_trace()
-
 
     fhir_client = FhirClient(host_config[args.host], idcache=None)
     for key in content:
