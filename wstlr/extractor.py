@@ -14,7 +14,7 @@ from wstlr.conceptmap import ObjectifyHarmony
 from wstlr.embedable import EmbedableTable
 from wstlr import dd_system_url, system_base, StandardizeDdType, clean_values, fix_fieldname
 
-from wstlr import system_base
+from wstlr import system_base, InvalidType
 
 default_colnames = {
     "varname": "varname",
@@ -226,7 +226,12 @@ def ObjectifyDD(study_id,
             if colname not in ["varname", 'values']:
                 store_data(colname, line, variable, colnames)
         if 'type' in variable:
-            variable['type'] = StandardizeDdType(variable['type'])
+            try:
+                variable['type'] = StandardizeDdType(variable['type'])
+            except InvalidType as e:
+                print(f"Unrecognized variable type, {e.type_name}, found in "
+                      f"dictionary for table, {table_name}. ")
+                sys.exit(1)
         if variable['desc'].strip() == "":
             variable['desc'] = variable['varname']
 

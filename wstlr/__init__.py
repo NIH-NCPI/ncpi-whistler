@@ -34,17 +34,21 @@ class TableType(Enum):
     Embedded = 2
     Grouped = 3
 
-def StandardizeDdType(dd_type):
+class InvalidType(Exception):
+    def __init__(self, bad_type):
+        self.type_name = bad_type
 
+    def message(self):
+        return f"""Unrecognized variable type, {dd_type}. Please see """
+        """about adding this type to the categories in Whistler.\n"""
+
+def StandardizeDdType(dd_type):
     for dt in _data_dictionary_type_map.keys():
         the_types =  _data_dictionary_type_map[dt]
         if dd_type.lower() in _data_dictionary_type_map[dt]:
             return _data_dictionary_type_map[dt][0]
 
-    # if it doesn't match, why not just report the problem and exit
-    sys.stderr.write(f"""Unrecognized variable type, {dd_type}. Please see """
-        """about adding this type to the categories in Whistler.\n""")
-    sys.exit(1)
+    raise InvalidType(dd_type)
 
 def determine_table_type(table_def):
     """Checks for specific keys to determine which TableType applies"""
