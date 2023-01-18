@@ -1,6 +1,19 @@
 // ObservationDefinition is used to describe individual dataset variables 
 // for use in dataset summarization
 
+// Description: Build the ActivityDefinition URL
+//
+// Arguments:
+//   dd_entry - Variable's entry from the whistle input data-dictionary array
+//
+// This just replaces CodeSystem with ActivityDefinition so that the URLs can
+// be distinct. 
+//
+def BuildActivityDefinitionUrl(dd_entry) {
+    $this: StringReplace(dd_entry.url, "/CodeSystem/", "/ActivityDefinition/");
+}
+
+
 // Description: Uniform ID generation
 // 
 // Arguments:
@@ -78,7 +91,7 @@ def DdTable(study, dd_entry) {
     identifier[0].use: "official";
     name: $StrCat(study.id, ".", dd_entry.table_name, "-vars");
     title: $StrCat("Variables for table ", study.id, ".", dd_entry.table_name);
-    url: dd_entry.url;
+    url: BuildActivityDefinitionUrl(dd_entry);
     topic[0].coding[0].code: "C0035168";
     topic[0].coding[0].display: "Research";
     topic[0].coding[0].system: "https://uts.nlm.nih.gov/uts/umls";
