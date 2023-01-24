@@ -244,7 +244,11 @@ def exec():
         output_directory.mkdir(parents=True, exist_ok=True)
         whistle_input = output_directory / f"{config['output_filename']}.json"
 
-        dataset = DataCsvToObject(config)
+        try:
+            dataset = DataCsvToObject(config)
+        except FileNotFoundError as e:
+            sys.stderr.write(f"ERROR: Unable to find file, {e.filename}.\n")
+            sys.exit(1)
 
         harmony_files = set()
         cm_timestamp = None
