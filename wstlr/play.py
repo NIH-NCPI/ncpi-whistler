@@ -57,6 +57,9 @@ def run_whistle(whistlefile, inputfile, harmonydir, projectorlib, outputdir, whi
     return f"{outputdir}/{Path(inputfile).stem}.output.json"
 
 def get_latest_date(filename, latest_observed_date):
+    if filename is None or str(filename).lower() == 'none':
+        return latest_observed_date
+
     mtime = Path(filename).stat().st_mtime
 
     if latest_observed_date is None or mtime > latest_observed_date:
