@@ -25,8 +25,8 @@ class DDVariableType(Enum):
 _data_dictionary_type_map = OrderedDict()
 _data_dictionary_type_map[DDVariableType.StringType] = ['string', '', 'str']
 _data_dictionary_type_map[DDVariableType.IntegerType] = ['int', 'integer']
-_data_dictionary_type_map[DDVariableType.FloatType] = ['number', 'decimal']
-_data_dictionary_type_map[DDVariableType.CategoricalType] = ['string', 'integer, encoded value']
+_data_dictionary_type_map[DDVariableType.FloatType] = ['number', 'decimal', 'float']
+_data_dictionary_type_map[DDVariableType.CategoricalType] = ['string', 'integer, encoded value', 'enumeration']
 _data_dictionary_type_map[DDVariableType.DateType] = ['date']
 
 class TableType(Enum):
@@ -120,3 +120,17 @@ def dd_system_url(url_base, term_type, study_component, table_name, varname ):
         return f"{url_base}/{term_type}/data-dictionary/{study_component}/{fix_fieldname(table_name)}"
     else:
         return f"{url_base}/{term_type}/data-dictionary/{study_component}/{fix_fieldname(table_name)}/{fix_fieldname(varname)}"
+
+
+_boolean_values = set(['true', 'yes', '1', 1, True])
+def evaluate_bool(value=None):
+    global _boolean_values
+    val_type = type(value)
+    if val_type is bool:
+        return value
+    
+    if val_type is str:
+        value = value.lower()
+
+    return value in _boolean_values
+    
