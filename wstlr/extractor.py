@@ -14,7 +14,7 @@ from wstlr.conceptmap import ObjectifyHarmony
 from wstlr.embedable import EmbedableTable
 from wstlr import dd_system_url, system_base, StandardizeDdType, clean_values, fix_fieldname
 
-from wstlr import system_base
+from wstlr import system_base, InvalidType
 
 default_colnames = {
     "varname": "varname",
@@ -155,9 +155,13 @@ class DataDictionaryVariableCS:
         values = []
 
         for code in self.values:
+            desc = self.values[code]
+
+            if desc is None or desc == 'None':
+                desc = code
             values.append({
                 "code": code,
-                "description": self.values[code]
+                "description": desc
             })
             if values[-1]['description'].strip() == "":
                 values[-1]['description'] = code
@@ -226,7 +230,12 @@ def ObjectifyDD(study_id,
             if colname not in ["varname", 'values']:
                 store_data(colname, line, variable, colnames)
         if 'type' in variable:
-            variable['type'] = StandardizeDdType(variable['type'])
+            try:
+                variable['type'] = StandardizeDdType(variable['type'])
+            except InvalidType as e:
+                print(f"Unrecognized variable type, {e.type_name}, found in "
+                      f"dictionary for table, {table_name}. ")
+                sys.exit(1)
         if variable['desc'].strip() == "":
             variable['desc'] = variable['varname']
 
@@ -392,7 +401,6 @@ def DataCsvToObject(config):
     if consent_group is not None:
         study_component = f"{study_component}-{consent_group}"
 
-
     dd_tablevar_cs = DataDictionaryVariableCS(config['study_id'], consent_group, "DataSet", None, "", url_base=config['identifier_prefix'])
     dataset['study']['data-dictionary'][0] = dd_tablevar_cs.as_obj()
 
@@ -411,6 +419,12 @@ def DataCsvToObject(config):
         filenames = config['dataset'][category]['filename'].split(",")
 
         dd_tablevar_cs.values[category] = ",".join([fn.split("/")[-1] for fn in filenames])
+
+        # This is a cheap way to indicate that our dataset doesn't have any real 
+        # data. But, we don't want anything to believe that there is a file out
+        # there named 'none'.
+        if filenames[0].lower() == 'none':
+            dd_tablevar_cs.values[category] = None
 
         if embedable is not None:
             embd = EmbedableTable(category, embedable['dataset'], embedable['colname'])
@@ -492,23 +506,24 @@ def DataCsvToObject(config):
                 file_list = [x.strip() for x in config['dataset'][category]['filename'].split(",")]
 
                 for filename in file_list:
-                    with open(filename, encoding='utf-8-sig', errors='ignore') as f:
-                        delimiter = ","
-                        if 'delimiter' in config['dataset'][category]:
-                            delimiter = config['dataset'][category]['delimiter']
+                    if filename.lower() != 'none':
+                        with open(filename, encoding='utf-8-sig', errors='ignore') as f:
+                            delimiter = ","
+                            if 'delimiter' in config['dataset'][category]:
+                                delimiter = config['dataset'][category]['delimiter']
 
-                        data_chunk = ObjectifyCSV(f, aggregators, grouper, agg_splitter, code_details, dd_based_varnames, delimiter=delimiter)
+                            data_chunk = ObjectifyCSV(f, aggregators, grouper, agg_splitter, code_details, dd_based_varnames, delimiter=delimiter)
 
-                        if category in embedded:
-                            for emb in embedded[category]:
-                                if emb.join_col not in data_chunk[0]:
-                                    print(f"Unable to find column, '{emb.join_col}', options include: {data_chunk[0].keys()} Unable to embed this table.")
-                                for row in data_chunk:
-                                    if emb.join_col not in row:
-                                        print(f"Unable to find join column: {emb.join_col}. \nAvailable columns: {','.join(sorted(row.keys()))}")
-                                    row[emb.table_name] = emb.get_rows(row[emb.join_col])
+                            if category in embedded:
+                                for emb in embedded[category]:
+                                    if emb.join_col not in data_chunk[0]:
+                                        print(f"Unable to find column, '{emb.join_col}', options include: {data_chunk[0].keys()} Unable to embed this table.")
+                                    for row in data_chunk:
+                                        if emb.join_col not in row:
+                                            print(f"Unable to find join column: {emb.join_col}. \nAvailable columns: {','.join(sorted(row.keys()))}")
+                                        row[emb.table_name] = emb.get_rows(row[emb.join_col])
 
-                    dataset[category] = data_chunk
+                        dataset[category] = data_chunk
         else:
             print(f"Skipping in-active table, {category}")
 
