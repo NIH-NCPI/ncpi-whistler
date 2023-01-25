@@ -17,6 +17,7 @@ class DDVariableType(Enum):
     FloatType = 3
     CategoricalType = 4
     DateType = 5
+    BooleanType = 6
 
 # The formal representation we'll pass to whistle will be the first entry in 
 # each list Because categoricals actually do require values, the underlying 
@@ -25,6 +26,7 @@ class DDVariableType(Enum):
 _data_dictionary_type_map = OrderedDict()
 _data_dictionary_type_map[DDVariableType.StringType] = ['string', '', 'str']
 _data_dictionary_type_map[DDVariableType.IntegerType] = ['int', 'integer']
+_data_dictionary_type_map[DDVariableType.BooleanType] = ['boolean','bool']
 _data_dictionary_type_map[DDVariableType.FloatType] = ['number', 'decimal', 'float']
 _data_dictionary_type_map[DDVariableType.CategoricalType] = ['string', 'integer, encoded value', 'enumeration']
 _data_dictionary_type_map[DDVariableType.DateType] = ['date']
