@@ -13,18 +13,27 @@ import json
 import pdb
 
 class JsonParser(DdLoader):
-    def __init__(self, filename, tables_path="tables", columns_path="columns"):
+    def __init__(self, 
+                    filename, 
+                    tables_path="tables", 
+                    columns_path="columns", 
+                    colnames={}):
         # We need to know the name of the variable containing the list
         # of variables 
         self.tables_path = tables_path
         self.variables_path = columns_path
         # We'll set the study_name and description using data from the JSON 
         # file itself. 
-        super().__init__(filename=filename, study_name=filename, description="")
+        super().__init__(filename=filename, 
+                    study_name=filename, 
+                    description="", 
+                    colnames=colnames)
 
-    def open(self, filename=None):
+    def open(self, filename=None, colnames={}):
         die_if(filename is None, "No filename provided for JSON file")
 
+        self.set_colnames(colnames)
+        
         file = self.open_file(filename)
         data = json.load(file)
 
@@ -58,8 +67,14 @@ class JsonParser(DdLoader):
 
                 for varname, variable in table.variables.items():
                     enumerations = variable.enumerations
-                    if len(enumerations) == 0:
+                    if len(variable.enumerations) == 0:
                         enumerations = ""
+                    else:
+                        enumerations = []
+                        for k,v in variable.enumerations.items():
+                            enumerations.append(f"{k}={v}")
+                        enumerations = ";".join(enumerations)
+
                     writer.writerow([
                         varname,
                         variable.description,
@@ -73,7 +88,7 @@ def convert_json_to_csv():
     from argparse import ArgumentParser, FileType
 
     parser = ArgumentParser(
-        description="Convert data dictionary from a single JSON file to CSV files"
+        description="Convert data dictionary from a single JSON file to CSVs"
     )
     parser.add_argument(
         "-s",
@@ -93,7 +108,8 @@ def convert_json_to_csv():
         "--column-array-variable",
         type=str,
         default="columns",
-        help="Variable name where the array of columns is found within the table object."
+        help="Variable name where the array of columns is found within the "
+             "table object."
     )
     parser.add_argument(
         "-o",

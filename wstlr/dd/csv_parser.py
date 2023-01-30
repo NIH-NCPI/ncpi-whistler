@@ -2,18 +2,33 @@
 Parse CSV version of DD
 """
 
-from wstlr import die_if 
+from wstlr import die_if, system_base
+from wstlr.dd.loader import DdLoader
+
+from pathlib import Path
 import csv
+import pdb
 
 class CsvParser(DdLoader):
-    def __init__(self, name, description=""):
-        super().__init__(name, description)
+    def __init__(self, filename, 
+                    name, 
+                    description="", 
+                    colnames={},
+                    url_base=system_base):
+        super().__init__(filename, 
+                            name, 
+                            description, 
+                            colnames=colnames, 
+                            url_base=url_base)
 
-    def open(self, filename=None, name=None):
+    def open(self, filename, name=None, colnames={}):
         die_if(filename is None, "No filename provided for CSV file")
 
+        self.set_colnames(colnames)
+
+        #pdb.set_trace()
         if name is None:
-            name = filename.split("/")[-1]
+            name = Path(filename).stem
 
         self.study.add_table(name=name)
         file = self.open_file(filename)
@@ -29,4 +44,4 @@ class CsvParser(DdLoader):
         self.check_for_required_colnames(fieldnames)
 
         for line in reader:
-            self.study.add_variable(name, line)
+            self.study.add_variable(name, **line)
