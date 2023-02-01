@@ -27,7 +27,8 @@ setup(
             'buildsrcobs = wstlr.sourcedata.obscomp:exec',
             'buildsrcqr = wstlr.sourcedata.questionnaire:exec',
             'init-play = wstlr.init:exec',
-            'igload = wstlr.igload:exec'
+            'igload = wstlr.igload:exec',
+            'dd-json-to-csv=wstlr.dd.json_parser:convert_json_to_csv'
         ]
     }
 )

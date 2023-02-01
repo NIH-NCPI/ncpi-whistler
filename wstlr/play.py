@@ -24,6 +24,8 @@ from wstlr.idcache import IdCache
 from wstlr.bundle import Bundle, ParseBundle, RequestType
 
 from ncpi_fhir_client.ridcache import RIdCache
+from wstlr.config import Configuration
+
 import os
 
 import pdb
@@ -66,22 +68,22 @@ def get_latest_date(filename, latest_observed_date):
         return mtime
     return latest_observed_date
 
-def check_latest_update(config_filename, config, cm_timestamp = None):
-    latest_update = get_latest_date(config_filename, None)
+def check_latest_update(config, cm_timestamp = None):
+    latest_update = get_latest_date(config.filename, None)
 
     # Work the harmony concept map into dependency check
     if cm_timestamp is not None and latest_update < cm_timestamp:
         latest_update = cm_timestamp
 
-    for table in config['dataset']:
-        if 'data_dictionary' in config['dataset'][table]:
-            latest_update = get_latest_date(config['dataset'][table]['data_dictionary']['filename'], latest_update)
+    for table_name, table in config.dataset.items():
+        if 'data_dictionary' in table:
+            latest_update = get_latest_date(table['data_dictionary']['filename'], latest_update)
 
-        for filename in config['dataset'][table]['filename'].split(","):
+        for filename in table['filename'].split(","):
             latest_update = get_latest_date(filename, latest_update)
 
-    latest_update = get_latest_date(config['whistle_src'], latest_update)
-    for wst in Path(config['projector_lib']).glob("*.wstl"):
+    latest_update = get_latest_date(config.whistle_src, latest_update)
+    for wst in Path(config.projector_lib).glob("*.wstl"):
         latest_update = get_latest_date(wst, latest_update)
     
     return latest_update
@@ -228,13 +230,14 @@ def exec():
     host = args.host
 
     for config_file in args.config:
-        config = safe_load(config_file)
-        require_official = config.get('require_official')
+        cfg = Configuration(config_file)
+        #config = safe_load(config_file)
+        require_official = cfg.require_official
 
-        environment = config.get("env")
+        environment = cfg.env
         if args.env is not None:
             if args.env not in environment:
-                print(f"The environment, {args.env}, is not configured in {config}.")
+                print(f"The environment, {args.env}, is not configured in {cfg.filename}.")
                 sys.exit(1)
 
             if args.host is not None:
@@ -245,10 +248,10 @@ def exec():
         # Work out the destination for the Whistle input
         output_directory = Path(args.intermediate)
         output_directory.mkdir(parents=True, exist_ok=True)
-        whistle_input = output_directory / f"{config['output_filename']}.json"
+        whistle_input = output_directory / f"{cfg.output_filename}.json"
 
         try:
-            dataset = DataCsvToObject(config)
+            dataset = DataCsvToObject(cfg)
         except FileNotFoundError as e:
             sys.stderr.write(f"ERROR: Unable to find file, {e.filename}.\n")
             sys.exit(1)
@@ -256,18 +259,18 @@ def exec():
         harmony_files = set()
         cm_timestamp = None
         # Build ConceptMaps if provided
-        for ds in config['dataset'].keys():
-            if 'code_harmonization' in config['dataset'][ds] and \
-                config['dataset'][ds]['code_harmonization'] not in harmony_files:
+        for dsname, dsconfig in cfg.dataset.items():
+            if 'code_harmonization' in dsconfig and \
+                dsconfig['code_harmonization'] not in harmony_files:
                 # We do want to rebuild each harmony file once per config, but
                 # no need to do it more than that
                 cm_timestamp = BuildConceptMap(
-                            config['dataset'][ds]['code_harmonization'], 
-                            curies=config.get('curies'), 
+                            dsconfig['code_harmonization'], 
+                            curies=cfg.curies, 
                             codesystems=dataset['code-systems'])
-                harmony_files.add(config['dataset'][ds]['code_harmonization'])
+                harmony_files.add(dsconfig['code_harmonization'])
 
-        input_file_ts = check_latest_update(config_file.name, config, cm_timestamp)
+        input_file_ts = check_latest_update(cfg, cm_timestamp)
 
         if args.force or not whistle_input.exists() or input_file_ts > whistle_input.stat().st_mtime:
             with whistle_input.open(mode='wt') as f:
@@ -275,7 +278,7 @@ def exec():
 
         output_directory = Path(args.output)
         output_directory.mkdir(parents=True, exist_ok=True)
-        whistle_output = output_directory / f"{config['output_filename']}.output.json"
+        whistle_output = output_directory / f"{cfg.output_filename}.output.json"
 
         if args.force or not whistle_output.exists() or whistle_output.stat().st_mtime < input_file_ts:
             response = run(['which', 'whistle'], capture_output=True)
@@ -288,10 +291,10 @@ def exec():
                 whistle_path = response.stdout.decode().strip()
                 print(f"Whistle Path: {whistle_path}")
 
-            result_file = run_whistle(whistlefile=config['whistle_src'], 
+            result_file = run_whistle(whistlefile=cfg.whistle_src, 
                         inputfile=str(whistle_input), 
-                        harmonydir=config['code_harmonization_dir'], 
-                        projectorlib=config['projector_lib'], 
+                        harmonydir=cfg.code_harmonization_dir, 
+                        projectorlib=cfg.projector_lib, 
                         outputdir=str(output_directory),
                         whistle_path=whistle_path)
 
@@ -301,7 +304,9 @@ def exec():
             obs_inspector = ObservationInspector()
             resource_summary = ModuleSummary()
             with open(result_file, 'rt') as  f:
-                ParseBundle(f, [resource_inspector.check_identifier, obs_inspector.inspect, resource_summary.summary])            
+                ParseBundle(f, [resource_inspector.check_identifier, 
+                                obs_inspector.inspect, 
+                                resource_summary.summary])            
             resource_summary.print_summary()
         else:
             result_file = str(whistle_output)
@@ -310,11 +315,20 @@ def exec():
         if host:  
             if args.max_validations > 0:
                 ResourceLoader._max_validations_per_resource = args.max_validations
-            cache_remote_ids = RIdCache(study_id=config['study_id'], valid_patterns=config.get('fhir_id_patterns'))
-            fhir_client = FhirClient(host_config[host], idcache=cache_remote_ids)
+            cache_remote_ids = RIdCache(study_id=cfg.study_id, 
+                                        valid_patterns=cfg.fhir_id_patterns)
+            fhir_client = FhirClient(host_config[host], 
+                                        idcache=cache_remote_ids)
 
             #cache = IdCache(config['study_id'], fhir_client.target_service_url)
-            loader = ResourceLoader(config['identifier_prefix'], fhir_client, study_id=config['study_id'], resource_list=args.resource, module_list=args.module, idcache=cache_remote_ids, threaded=args.threaded, thread_count=args.thread_count)
+            loader = ResourceLoader(cfg.identifier_prefix, 
+                                        fhir_client, 
+                                        study_id=cfg.study_id, 
+                                        resource_list=args.resource, 
+                                        module_list=args.module, 
+                                        idcache=cache_remote_ids, 
+                                        threaded=args.threaded, 
+                                        thread_count=args.thread_count)
             if args.threaded:
                 print("Threading enabled")
                 loader.max_queue_size = args.load_buffer_size
@@ -332,7 +346,10 @@ def exec():
                 request_type = RequestType.PUT
                 if args.validate_only or args.bundle_only:
                     request_type = RequestType.POST
-                transaction_bundle = Bundle(bundle_filename, f"{config['study_id']}-bundle", fhir_client.target_service_url, request_type=request_type)
+                transaction_bundle = Bundle(bundle_filename, 
+                                            f"{cfg.study_id}-bundle", 
+                                            fhir_client.target_service_url, 
+                                            request_type=request_type)
                 resource_consumers.append(transaction_bundle.consume_resource)
 
             with open(result_file, 'rt') as  f:
