@@ -3,7 +3,8 @@ Contains all tables (and variables)
 """
 
 from wstlr.dd.table import DdTable
-from wstlr import system_base
+from wstlr import system_base, dd_system_url
+
 
 import pdb
 
@@ -12,8 +13,22 @@ class DdStudy:
         self.name = name
         self.description = description 
         self.url_base = url_base
-
+        self.url = dd_system_url(self.url_base, 
+                                "CodeSystem", 
+                                self.name, 
+                                "DataSet", 
+                                None)
         self.tables = {}
+
+    def varname_lookup(self, table_name):
+        lkup = {}
+
+        self.tables[table_name].add_to_varname_lookup(lkup)
+        return lkup
+
+    def add_to_varname_lookup(self, lkup):
+        for varname, table in self.tables.items():
+            table.add_to_varname_lookup(lkup)
 
     def load_from_config(self, config):
         """Builds out the tables and variables according to the details """
@@ -26,12 +41,21 @@ class DdStudy:
 
     def add_table(self, name, description=""):
         self.tables[name] = DdTable(name, 
-                                    description, 
+                                    self.name,
+                                    description=description, 
                                     url_base=self.url_base)
 
     def add_variable(self, table_name, **kwargs):
         self.tables[table_name].add_variable(**kwargs)
         
+    def table_as_dd(self, table_name):
+        return self.tables[table_name].obj_as_dd_table()
+
+    def table_as_cs(self, table_name):
+        return self.tables[table_name].obj_as_cs()
+    
+    def variables_as_cs(self, table_name):
+        return self.tables[table_name].variables_as_cs()
 
     def obj_as_dd(self):
         values = []
@@ -43,6 +67,8 @@ class DdStudy:
             "table_name": "DataSet",
             "values": values
         }
+
+        return obj
 
     def obj_as_cs(self):
         values = []
@@ -58,3 +84,5 @@ class DdStudy:
             "table_name": "DataSet",
             "values": values
         }
+
+        return obj
