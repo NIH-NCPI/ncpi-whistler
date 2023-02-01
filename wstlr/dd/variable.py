@@ -58,6 +58,17 @@ class DdVariable:
         self.required = evaluate_bool(kwargs.get("required", False))
         self.notes = kwargs.get("notes", "")
 
+    def add_to_varname_lookup(self, lkup):
+        desc = self.desc 
+
+        if desc != self.varname:
+            lkup[desc] = self.varname
+
+        for code, description in self.enumerations.items():
+            if code != description:
+                vardesc = f"{self.varname}:{description}"
+                lkup[vardesc] = code
+
     @property
     def desc(self):
         if self.description is not None and len(self.description.strip()) != 0:
@@ -138,7 +149,7 @@ class DdVariable:
         obj = {
             "varname": self.varname,
             "url": self.url,
-            "study": self.study,
+            "study": self.study_name,
             "table_name": self.table_name,
             "values": self.values_for_json()
         }
@@ -153,8 +164,8 @@ class DdVariable:
         """Build out the values suitable for adding to json object"""
         values = []
 
-        for code in self.values:
-            desc = self.values[code]
+        for code in self.enumerations:
+            desc = self.enumerations[code]
 
             if desc is None or desc == 'None' or desc.strip() == "":
                 desc = code
