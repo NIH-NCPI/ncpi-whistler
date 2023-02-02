@@ -54,6 +54,7 @@ class DdLoader:
     def open_file(self, filename):
         """Can open files from internet or local-returns the file object"""
 
+        self.filename = filename
         # We should support files that start with http: 
         httpx = re.compile("^http[s]*:")
         if httpx.search(filename):
@@ -65,13 +66,11 @@ class DdLoader:
             file = open(filename, 'rt')
 
         return file
-
-
         
     def set_colnames(self, alternate_names):
         self.colnames = deepcopy(self.base_colnames)
 
-        for alt_name, target_name in alternate_names.items():
+        for target_name, alt_name in alternate_names.items():
             self.colnames[alt_name] = target_name
 
     def check_for_required_colnames(self, fieldnames):
@@ -79,7 +78,8 @@ class DdLoader:
 
         for required_col in DdLoader.required_columns:
             die_if(required_col not in fieldnames, f"Required column, "
-                f"{required_col}, missing from file, {self.filename}. If this "
+                f"{required_col}, missing from file, {self.filename}. The "
+                f"columns found: {','.join(fieldnames)}.\n If this "
                 f"should be mapped to another column, please provide a valid "
                 f"mapping.")
 
