@@ -234,6 +234,10 @@ def exec():
         #config = safe_load(config_file)
         require_official = cfg.require_official
 
+        resource_list = args.resource
+        if resource_list is None:
+            resource_list = cfg.resource_list
+        print(f"The resource list is: {resource_list}")
         environment = cfg.env
         if args.env is not None:
             if args.env not in environment:
@@ -324,7 +328,7 @@ def exec():
             loader = ResourceLoader(cfg.identifier_prefix, 
                                         fhir_client, 
                                         study_id=cfg.study_id, 
-                                        resource_list=args.resource, 
+                                        resource_list=resource_list, 
                                         module_list=args.module, 
                                         idcache=cache_remote_ids, 
                                         threaded=args.threaded, 
