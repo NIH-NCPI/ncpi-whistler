@@ -263,8 +263,10 @@ def DataCsvToObject(config):
                 if 'delimiter' in table['data_dictionary']:
                     delimiter = table['data_dictionary']['delimiter']
 
-                if active_tables.get('ALL') == True or active_tables.get("data-dictionary"):
-                    dataset['study']['data-dictionary'].append(config.study_dd.table_as_dd(category))
+                # Unlike data, we don't want data-dictionary components 
+                # disappearing due to inactive tables. That control is 
+                # intended for data loading
+                dataset['study']['data-dictionary'].append(config.study_dd.table_as_dd(category))
 
         if active_tables.get('ALL') == True or active_tables.get("harmony"):
             if 'code_harmonization' in table:
@@ -281,7 +283,14 @@ def DataCsvToObject(config):
         # of the long, descriptive name
         dd_based_varnames = config.study_dd.varname_lookup(category)
 
+        # Add our main dataset CS to the list
+        dataset['code-systems'].append(config.study_dd.table_as_cs(category))
+        
+        newcs = config.study_dd.variables_as_cs(category)
+        dataset['code-systems'] += newcs
+        
         if active_tables.get('ALL') == True or active_tables.get(category):
+            print(f"Processing active table, {category}")
             if 'embed' not in table:
                 grouper = GroupBy(config=table.get('group_by'))
                 file_list = [x.strip() for x in table['filename'].split(",")]
@@ -311,11 +320,7 @@ def DataCsvToObject(config):
                                         row[emb.table_name] = emb.get_rows(row[emb.join_col])
 
                         dataset[category] = data_chunk
-            # Add our main dataset CS to the list
-            dataset['code-systems'].append(config.study_dd.table_as_cs(category))
-            
-            newcs = config.study_dd.variables_as_cs(category)
-            dataset['code-systems'] += newcs
+
 
         else:
             print(f"Skipping in-active table, {category}")
