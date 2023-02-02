@@ -26,7 +26,6 @@ class CsvParser(DdLoader):
 
         self.set_colnames(colnames)
 
-        #pdb.set_trace()
         if name is None:
             name = Path(filename).stem
 
@@ -38,6 +37,7 @@ class CsvParser(DdLoader):
         fieldnames = []
         for colname in reader.fieldnames:
             fieldnames.append(self.colnames.get(colname, colname))
+            
         reader.fieldnames = fieldnames
         
         # Sanity check the key columns we require
