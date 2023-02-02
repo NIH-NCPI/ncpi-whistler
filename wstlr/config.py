@@ -152,3 +152,11 @@ class Configuration:
     @property
     def consent_group(self):
         return self.from_config('consent_group')
+
+    @property
+    def fhir_id_patterns(self):
+        return self.from_config('fhir_id_patterns')
+
+    @property
+    def resource_list(self):
+        return self.from_config('resource_list')
