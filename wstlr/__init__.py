@@ -24,7 +24,7 @@ class DDVariableType(Enum):
 # functionality should default to capturing strings if there are inadequate 
 # enumerated values in the data dictionary provided
 _data_dictionary_type_map = OrderedDict()
-_data_dictionary_type_map[DDVariableType.StringType] = ['string', '', 'str']
+_data_dictionary_type_map[DDVariableType.StringType] = ['string', '', 'str', 'identifier']
 _data_dictionary_type_map[DDVariableType.IntegerType] = ['int', 'integer']
 _data_dictionary_type_map[DDVariableType.BooleanType] = ['boolean','bool']
 _data_dictionary_type_map[DDVariableType.FloatType] = ['number', 'decimal', 'float']
