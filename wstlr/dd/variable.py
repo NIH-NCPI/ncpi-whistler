@@ -122,7 +122,7 @@ class DdVariable:
         if len(obj['values']) > 0:
             obj['values-url'] = self.url
             obj['values-details'] = {
-                "table_name": self.table_name,
+                "table-name": self.table_name,
                 "varname": self.varname
             }
         return obj 
@@ -138,7 +138,7 @@ class DdVariable:
         if len(obj['values']) > 0:
             obj['values-url'] = self.url
             obj['values-details'] = {
-                "table_name": self.table_name,
+                "table-name": self.table_name,
                 "varname": self.varname
             }
         return obj 
