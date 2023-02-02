@@ -115,10 +115,11 @@ class DdTable:
             })
 
         obj = {
-            "varname": self.name,
+            "varname": None,
             "url": self.url,
             "study": self.study_name,
-            "values": values
+            "values": values,
+            "table_name": self.name
         }
 
         return obj
