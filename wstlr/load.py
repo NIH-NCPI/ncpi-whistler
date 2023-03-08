@@ -299,12 +299,17 @@ class ResourceLoader:
                 (system, uniqid) =  self.get_identifier(result['response'])
                 cache_id = True
         else:
+            identifier_type='identifier'
+            cache_id = self.idcache is not None
+            (system, uniqid) = self.get_identifier(resource)
+            resource_identifier = uniqid
             if self.idcache and 'id' not in resource:
-                (system, uniqid) = self.get_identifier(resource)
+                
                 id = self.idcache.get_id(system, uniqid)
 
                 if id:
                     resource['id'] = id[1]
+                    cache_id = False
                 else:
                     cache_id = True
 
@@ -335,13 +340,17 @@ class ResourceLoader:
             retry_count = FhirClient.retry_post_count
             while retry_count > 0:
                 retry_count -= 1
-                result = self.client.post(resource_type, 
+                try:
+                    result = self.client.post(resource_type, 
                                             resource, 
                                             identifier=resource_identifier,
                                             identifier_system=system,
                                             identifier_type=identifier_type,
                                             validate_only=validate_only,
                                             retry_count=1)
+                except:
+                    print(f"What is going on? {resource}?")
+                    pdb.set_trace()
                 if result['status_code'] < 300:
                     retry_count = 0
 
