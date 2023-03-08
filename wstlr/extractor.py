@@ -254,8 +254,30 @@ def DataCsvToObject(config):
 
     for category,table in config.dataset.items():
         embedable = table.get('embed')
+        #filenames = table['filename'].split(",")
 
-        filenames = table['filename'].split(",")
+        if embedable is not None:
+            embd = EmbedableTable(category, embedable['dataset'], embedable['colname'])
+            for filename in table['filename'].split(","):
+                embd.load_data(filename)
+            embedded[embd.target].append(embd)
+
+
+    for category,table in config.dataset.items():
+        agg_splitter = table.get('aggregator-splitter')
+        aggregators = {}
+        if 'aggregators' in table:
+            aggregators = BuildAggregators(table.get('aggregators'))
+
+        code_details = {}
+        if 'code_harmonization' in table:
+            with open(table['code_harmonization'], 'rt') as f:
+                reader = csv.DictReader(f, delimiter=',', quotechar='"')
+
+                for row in reader:
+                    if 'display' not in row:
+                        print(row)
+                    code_details[row['local code']] = row['display']
 
         if 'data_dictionary' in table:
             with open(table['data_dictionary']['filename'], 'rt', encoding='utf-8-sig') as f:
@@ -266,7 +288,9 @@ def DataCsvToObject(config):
                 # Unlike data, we don't want data-dictionary components 
                 # disappearing due to inactive tables. That control is 
                 # intended for data loading
-                dataset['study']['data-dictionary'].append(config.study_dd.table_as_dd(category))
+                table_dd = config.study_dd.table_as_dd(category)
+                if table_dd:
+                    dataset['study']['data-dictionary'].append(table_dd)
 
         if active_tables.get('ALL') == True or active_tables.get("harmony"):
             if 'code_harmonization' in table:
@@ -284,10 +308,15 @@ def DataCsvToObject(config):
         dd_based_varnames = config.study_dd.varname_lookup(category)
 
         # Add our main dataset CS to the list
-        dataset['code-systems'].append(config.study_dd.table_as_cs(category))
+        table_cs = config.study_dd.table_as_cs(category)
+        if table_cs:
+            dataset['code-systems'].append(table_cs)
         
         newcs = config.study_dd.variables_as_cs(category)
-        dataset['code-systems'] += newcs
+        if newcs:
+            dataset['code-systems'] += newcs
+
+        #pdb.set_trace()
         
         if active_tables.get('ALL') == True or active_tables.get(category):
             print(f"Processing active table, {category}")
