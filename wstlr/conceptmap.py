@@ -371,12 +371,8 @@ def BuildConceptMap(csvfilename, curies, codesystems=[]):
 
     # Skip this step if the json file is newer
     if True:
-    #if (not Path(outname).exists()) or \
-    #    (Path(csvfilename).stat().st_mtime > Path(outname).stat().st_mtime):
-
         with open(csvfilename, 'rt') as f:
             reader = DictReader(f, delimiter=',', quotechar='"')
-
             # Make sure the field names are uniform. Just ignore case
             reader.fieldnames = [x.lower() for x in reader.fieldnames]
 
@@ -476,6 +472,8 @@ def BuildConceptMap(csvfilename, curies, codesystems=[]):
                             "target": cs["url"],
                             "element": []
                         }
+                        if cs["varname"] is None:
+                            element["source"] = cs["table_name"]
                 else:
                     element = {
                         "source": cs['table_name'],
