@@ -18,13 +18,14 @@ from argparse import ArgumentParser, FileType
 import re
 #from bs4 import BeautifulSoup
 import requests
-from wstlr import get_host_config
+from wstlr import get_host_config, die_if
 from wstlr.load import ResourceLoader
 from wstlr.idcache import IdCache
 from wstlr.bundle import Bundle, ParseBundle, RequestType
 
 from ncpi_fhir_client.ridcache import RIdCache
 from wstlr.config import Configuration
+
 
 import os
 
@@ -59,14 +60,20 @@ def run_whistle(whistlefile, inputfile, harmonydir, projectorlib, outputdir, whi
     return f"{outputdir}/{Path(inputfile).stem}.output.json"
 
 def get_latest_date(filename, latest_observed_date):
-    if filename is None or str(filename).lower() == 'none':
+    filepath = Path(filename)
+
+    die_if(not filepath.exists(), f"Missing file, {filename}. Unable to continue")
+    if filepath.exists():
+
+        if filename is None or str(filename).lower() == 'none':
+            return latest_observed_date
+
+        mtime = Path(filename).stat().st_mtime
+
+        if latest_observed_date is None or mtime > latest_observed_date:
+            return mtime
         return latest_observed_date
-
-    mtime = Path(filename).stat().st_mtime
-
-    if latest_observed_date is None or mtime > latest_observed_date:
-        return mtime
-    return latest_observed_date
+    
 
 def check_latest_update(config, cm_timestamp = None):
     latest_update = get_latest_date(config.filename, None)

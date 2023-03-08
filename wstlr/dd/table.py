@@ -10,6 +10,7 @@ class DdTable:
     def __init__(self, name, study_name, description="", **kwargs): #
         self.url_base=kwargs.get('url_base', system_base)
         consent_group=kwargs.get('consent_group')
+        #pdb.set_trace()
         
         self.name = name
         self.description = description

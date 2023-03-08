@@ -35,22 +35,24 @@ class Configuration:
         
         else:
             self.study_dd = DdStudy(self.study_id, self.study_desc)
+            
             csvp = None
             for table_name, table in self.dataset.items():
                 #pdb.set_trace()
-                csv_filename = table['data_dictionary']['filename']
-                colnames = table['data_dictionary'].get('colnames', {})
+                if "data_dictionary" in table and table.get('hidden') != True:
+                    csv_filename = table['data_dictionary']['filename']
+                    colnames = table['data_dictionary'].get('colnames', {})
 
-                if csvp is None:
-                    csvp = CsvParser(csv_filename, 
-                                self.study_id, 
-                                self.study_desc, 
-                                colnames,
-                                url_base=self.identifier_prefix)
-                else:
-                    csvp.open(csv_filename, 
-                                name=table_name, 
-                                colnames=colnames)
+                    if csvp is None:
+                        csvp = CsvParser(csv_filename, 
+                                    self.study_id, 
+                                    self.study_desc, 
+                                    colnames,
+                                    url_base=self.dd_prefix)
+                    else:
+                        csvp.open(csv_filename, 
+                                    name=table_name, 
+                                    colnames=colnames)
 
             self.study_dd = csvp.study
 
@@ -80,6 +82,12 @@ class Configuration:
     @property
     def url(self):
         return self.from_config('url')
+
+    @property
+    def dd_prefix(self):
+        if 'dd_prefix' in self.config:
+            return self.from_config('dd_prefix')
+        return self.identifier_prefix
 
     @property
     def identifier_prefix(self):

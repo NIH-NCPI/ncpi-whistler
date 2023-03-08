@@ -13,6 +13,7 @@ class DdStudy:
         self.name = name
         self.description = description 
         self.url_base = url_base
+        #pdb.set_trace()
         self.url = dd_system_url(self.url_base, 
                                 "CodeSystem", 
                                 self.name, 
@@ -23,7 +24,8 @@ class DdStudy:
     def varname_lookup(self, table_name):
         lkup = {}
 
-        self.tables[table_name].add_to_varname_lookup(lkup)
+        if table_name in self.tables:
+            self.tables[table_name].add_to_varname_lookup(lkup)
         return lkup
 
     def add_to_varname_lookup(self, lkup):
@@ -49,13 +51,16 @@ class DdStudy:
         self.tables[table_name].add_variable(**kwargs)
         
     def table_as_dd(self, table_name):
-        return self.tables[table_name].obj_as_dd_table()
+        if table_name in self.tables:
+            return self.tables[table_name].obj_as_dd_table()
 
     def table_as_cs(self, table_name):
-        return self.tables[table_name].obj_as_cs()
+        if table_name in self.tables:
+            return self.tables[table_name].obj_as_cs()
     
     def variables_as_cs(self, table_name):
-        return self.tables[table_name].variables_as_cs()
+        if table_name in self.tables:
+            return self.tables[table_name].variables_as_cs()
 
     def obj_as_dd(self):
         values = []
