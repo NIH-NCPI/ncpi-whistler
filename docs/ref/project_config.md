@@ -160,5 +160,8 @@ This should be the study's official URL with regard to the destination FHIR serv
 ### identifier_prefix (required)
 This variable is used by Whistler when generating URLs for CodeSystems and Resource Identifier. 
 
+### dd_prefix
+For data-dictionaries which are common to more than one study or dataset such as the case with loading data from a consortium where a single data-dictionary has been utilized, assign a meaningful URL prefix to this variable to avoid having different code systems and table/variable definitions for each project. If this variable is missing, the *identifier_prefix* will be used as the prefix for data-dictionary component systems. 
+
 ### require_official
 This is intended to facilitate a request by the INCLUDE portal devs that key identifiers be marked as official. 
