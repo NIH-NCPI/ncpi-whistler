@@ -94,8 +94,12 @@ def exec():
     content = safe_load(args.content)
 
     fhir_client = FhirClient(host_config[args.host], idcache=None)
+    print(f"Destination host: {fhir_client.target_service_url}")
+    #pdb.set_trace()
+
     for key in content:
         resources = {}
+        #pdb.set_trace()
         if content[key]['source_type'] == "IG":
             resources = ig_source.load_resources(content[key])
         elif content[key]['source_type'] == "FILES":
@@ -118,6 +122,7 @@ def exec():
         deleted_items = []
         for fn,data in resources.items():
             if fn in resource_list and not test_exclusion(fn, args.exclude):
+                #pdb.set_trace()
                 response = fhir_client.delete_by_query(data['resourceType'], qry=f"url={data['url']}")
 
                 if len(response) > 0:
@@ -138,9 +143,10 @@ def exec():
 
                 sleep(args.sleep_time)
 
+        #pdb.set_trace()
         # Iterate over the list and load them one at a time
         for fn,data in resources.items():
-            if fn in resource_list and not test_exclusion(fn, args.exclude):
+            if data['resourceType'] in resource_list and not test_exclusion(fn, exclusion_list):
                 response = fhir_client.load(data['resourceType'], data)
                 if type(response) is dict:
                     response = [response]
