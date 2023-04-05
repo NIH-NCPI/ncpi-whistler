@@ -18,6 +18,8 @@ from wstlr import system_base, InvalidType
 
 from wstlr.config import Configuration
 
+import pdb
+
 default_colnames = {
     "varname": "varname",
     "desc": "vardesc",
@@ -200,6 +202,7 @@ def BuildAggregators(cfg_agg):
     return aggregators
 
 def DataCsvToObject(config):
+    #pdb.set_trace()
     dataset = {
         "study": {
             "id": config.study_id,
@@ -278,12 +281,13 @@ def DataCsvToObject(config):
                     if 'display' not in row:
                         print(row)
                     code_details[row['local code']] = row['display']
-
+        #pdb.set_trace()
         if 'data_dictionary' in table:
-            with open(table['data_dictionary']['filename'], 'rt', encoding='utf-8-sig') as f:
-                delimiter = ","
-                if 'delimiter' in table['data_dictionary']:
-                    delimiter = table['data_dictionary']['delimiter']
+            if table['data_dictionary']['filename'].lower() != 'none':
+                with open(table['data_dictionary']['filename'], 'rt', encoding='utf-8-sig') as f:
+                    delimiter = ","
+                    if 'delimiter' in table['data_dictionary']:
+                        delimiter = table['data_dictionary']['delimiter']
 
                 # Unlike data, we don't want data-dictionary components 
                 # disappearing due to inactive tables. That control is 
@@ -311,17 +315,19 @@ def DataCsvToObject(config):
         table_cs = config.study_dd.table_as_cs(category)
         if table_cs:
             dataset['code-systems'].append(table_cs)
+        else:
+            print(f"{category} didn't produce a table cs")
+            pdb.set_trace()
         
         newcs = config.study_dd.variables_as_cs(category)
         if newcs:
             dataset['code-systems'] += newcs
-
-        #pdb.set_trace()
         
         if active_tables.get('ALL') == True or active_tables.get(category):
             print(f"Processing active table, {category}")
             if 'embed' not in table:
                 grouper = GroupBy(config=table.get('group_by'))
+
                 file_list = [x.strip() for x in table['filename'].split(",")]
 
                 for filename in file_list:
