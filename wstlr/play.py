@@ -60,19 +60,20 @@ def run_whistle(whistlefile, inputfile, harmonydir, projectorlib, outputdir, whi
     return f"{outputdir}/{Path(inputfile).stem}.output.json"
 
 def get_latest_date(filename, latest_observed_date):
-    filepath = Path(filename)
+    if str(filename).lower() != "none":
+        filepath = Path(filename)
 
-    die_if(not filepath.exists(), f"Missing file, {filename}. Unable to continue")
-    if filepath.exists():
+        die_if(not filepath.exists(), f"Missing file, {filename}. Unable to continue")
+        if filepath.exists():
 
-        if filename is None or str(filename).lower() == 'none':
-            return latest_observed_date
+            if filename is None or str(filename).lower() == 'none':
+                return latest_observed_date
 
-        mtime = Path(filename).stat().st_mtime
+            mtime = Path(filename).stat().st_mtime
 
-        if latest_observed_date is None or mtime > latest_observed_date:
-            return mtime
-        return latest_observed_date
+            if latest_observed_date is None or mtime > latest_observed_date:
+                return mtime
+    return latest_observed_date
     
 
 def check_latest_update(config, cm_timestamp = None):
@@ -238,7 +239,6 @@ def exec():
 
     for config_file in args.config:
         cfg = Configuration(config_file)
-        #config = safe_load(config_file)
         require_official = cfg.require_official
 
         resource_list = args.resource
