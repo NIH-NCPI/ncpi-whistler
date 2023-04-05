@@ -3,10 +3,10 @@ import zipfile
 import requests
 from tempfile import TemporaryFile
 import json
-
+from rich import print
 import sys
 
-
+import pdb
 
 
 # Return a list of valid JSON objects ready for loading
@@ -40,7 +40,21 @@ def load_resources(config):
         # Iterate over each of the entries 
         for f in zipped.infolist():
             filename = f.filename
+            data = zipped.read(filename).decode()
 
-            resources[filename] = json.loads(zipped.read(filename).decode())
+            if filename != "spec.internals":
+                try:
+                    obj = json.loads(data)
+                    if obj is None:
+                        print(filename)
+                        pdb.set_trace()
+                        print(data)
+                    resources[filename] = obj
+                except:
+                    print(filename)
+                    pdb.set_trace()
+                    print(data)
 
         print(f"{len(resources)} resources found at: {ig_source}")
+
+        return resources
