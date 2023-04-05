@@ -32,7 +32,9 @@ class CsvParser(DdLoader):
         self.study.add_table(name=name)
         file = self.open_file(filename)
 
-        reader = csv.DictReader(file, delimiter=",", quotechar='"')
+        # We have some excess columns...because, why not. 
+        # restkey should prevent those from kill python's dereference
+        reader = csv.DictReader(file, delimiter=",", quotechar='"', restkey='junk')
         
         fieldnames = []
         for colname in reader.fieldnames:
