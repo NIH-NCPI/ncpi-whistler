@@ -38,7 +38,6 @@ class Configuration:
             
             csvp = None
             for table_name, table in self.dataset.items():
-                #pdb.set_trace()
                 if "data_dictionary" in table and table.get('hidden') != True:
                     csv_filename = table['data_dictionary']['filename']
                     colnames = table['data_dictionary'].get('colnames', {})
@@ -47,7 +46,8 @@ class Configuration:
                         csvp = CsvParser(csv_filename, 
                                     self.study_id, 
                                     self.study_desc, 
-                                    colnames,
+                                    table_name=table_name,
+                                    colnames=colnames,
                                     url_base=self.dd_prefix)
                     else:
                         csvp.open(csv_filename, 
