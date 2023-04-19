@@ -17,6 +17,7 @@ import sys
 from wstlr.module_summary import ModuleSummary
 from argparse import ArgumentParser, FileType
 from wstlr.bundle import Bundle, ParseBundle, RequestType
+from rich import print
 
 def ReportError(is_error, resource, message):
     if is_error:
