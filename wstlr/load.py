@@ -26,6 +26,8 @@ import concurrent.futures
 from threading import Lock, current_thread, main_thread
 import datetime
 
+from rich import print 
+
 from wstlr.bundle import Bundle, ParseBundle, RequestType
 
 from ncpi_fhir_client.ridcache import RIdCache
@@ -301,7 +303,11 @@ class ResourceLoader:
         else:
             identifier_type='identifier'
             cache_id = self.idcache is not None
-            (system, uniqid) = self.get_identifier(resource)
+            try:
+                (system, uniqid) = self.get_identifier(resource)
+            except:
+                print("Something went wrong getting an identifier for: ")
+                print(resource)
             resource_identifier = uniqid
             if self.idcache and 'id' not in resource:
                 
@@ -370,6 +376,8 @@ class ResourceLoader:
             self.studyids.add_id(resource_type, result['response']['id'])
 
             if cache_id and 'id' in result['response']:
+                if system is None:
+                    pdb.set_trace()
                 self.idcache.store_id(resource_type, system, uniqid, result['response']['id'], no_db=True)
 
         else:
