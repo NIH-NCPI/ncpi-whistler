@@ -17,6 +17,7 @@ class JsonParser(DdLoader):
                     filename, 
                     tables_path="tables", 
                     columns_path="columns", 
+                    table_name=None,
                     colnames={}):
         # We need to know the name of the variable containing the list
         # of variables 
@@ -28,6 +29,9 @@ class JsonParser(DdLoader):
                     study_name=filename, 
                     description="", 
                     colnames=colnames)
+
+        self.open(filename=self.filename, colnames=colnames)
+
 
     def open(self, filename=None, colnames={}):
         die_if(filename is None, "No filename provided for JSON file")

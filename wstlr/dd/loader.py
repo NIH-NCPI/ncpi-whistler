@@ -49,8 +49,6 @@ class DdLoader:
             "values": "enumerations"
         }
 
-        self.open(filename=self.filename, colnames=colnames)
-
     def open_file(self, filename):
         """Can open files from internet or local-returns the file object"""
 

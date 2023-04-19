@@ -13,6 +13,7 @@ class CsvParser(DdLoader):
     def __init__(self, filename, 
                     name, 
                     description="", 
+                    table_name=None,
                     colnames={},
                     url_base=system_base):
         super().__init__(filename, 
@@ -21,11 +22,14 @@ class CsvParser(DdLoader):
                             colnames=colnames, 
                             url_base=url_base)
 
+        self.open(filename=self.filename, name=table_name, colnames=colnames)
+
     def open(self, filename, name=None, colnames={}):
         die_if(filename is None, "No filename provided for CSV file")
 
         self.set_colnames(colnames)
 
+        print(f"New CSV: {filename} : {name}")
         if name is None:
             name = Path(filename).stem
 
