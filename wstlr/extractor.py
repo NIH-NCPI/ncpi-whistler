@@ -317,7 +317,6 @@ def DataCsvToObject(config):
             dataset['code-systems'].append(table_cs)
         else:
             print(f"{category} didn't produce a table cs")
-            pdb.set_trace()
         
         newcs = config.study_dd.variables_as_cs(category)
         if newcs:
