@@ -36,7 +36,7 @@ def DdVariableId(study_id, table_name, varname) {
 def DdVariable(study, table_name, dd_entry, permDataType, code_system) {
     meta.tag[]: StudyMeta(study);
     {% if context['profiles'] -%}
-        meta.profile[]: "https://ncpi-fhir.github.io/ncpi-fhir-study-summary-ig/StructureDefinition/study-dd-variable"
+        meta.profile[]: "https://nih-ncpi.github.io/ncpi-fhir-ig/StructureDefinition/study-data-dictionary-variable"
     {% endif -%}
 
     identifier[]: Key_Identifier(study, "ObservationDefinition", DdVariableId(study.id, table_name, dd_entry.varname));
@@ -84,7 +84,7 @@ def DdTable(study, dd_entry) {
     meta.tag[]: StudyMeta(study);
 
     {% if context['profiles'] -%}
-        meta.profile[]: "https://ncpi-fhir.github.io/ncpi-fhir-study-summary-ig/StructureDefinition/study-dd-table"
+        meta.profile[]: "https://nih-ncpi.github.io/ncpi-fhir-ig/StructureDefinition/study-data-dictionary-table"
     {% endif %}
  
     identifier[]: Key_Identifier(study, "ActivityDefinition", dd_entry.table_name);

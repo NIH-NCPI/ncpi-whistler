@@ -12,6 +12,7 @@ def load_resources(config):
     
     for filename in config['resources']:
         resource = None
+
         if filename.lower()[:4] == "http":
             response = requests.get(filename)
             response.raise_for_status()
