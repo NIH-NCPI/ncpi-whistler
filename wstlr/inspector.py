@@ -82,6 +82,7 @@ class ResourceInspector:
         
         resourcetype = resource['resourceType']
         if 'system' not in identifier:
+            print(resource)
             print(identifier)
             pdb.set_trace()
         idval = f"{identifier['system']}:{identifier['value']}"
