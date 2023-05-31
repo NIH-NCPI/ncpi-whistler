@@ -125,9 +125,9 @@ def fix_fieldname(fieldname):
 
 def dd_system_url(url_base, term_type, study_component, table_name, varname ):
     if varname is None:
-        return f"{url_base}/{term_type}/data-dictionary/{study_component}/{fix_fieldname(table_name)}"
+        return f"{url_base}/{term_type}/data-dictionary/{fix_fieldname(table_name)}"
     else:
-        return f"{url_base}/{term_type}/data-dictionary/{study_component}/{fix_fieldname(table_name)}/{fix_fieldname(varname)}"
+        return f"{url_base}/{term_type}/data-dictionary/{fix_fieldname(table_name)}/{fix_fieldname(varname)}"
 
 
 _boolean_values = set(['true', 'yes', '1', 1, True])

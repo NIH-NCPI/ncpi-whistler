@@ -204,12 +204,16 @@ def BuildAggregators(cfg_agg):
 def DataCsvToObject(config):
     #pdb.set_trace()
     dataset = {
+        "config": {
+            "missing": ["NA", "", "Not Provided"]
+        },
         "study": {
             "id": config.study_id,
             "accession": config.study_accession,
             "title": config.study_title,
             "desc": config.study_desc,
             "identifier-prefix": config.identifier_prefix,
+            "dd-prefix": config.dd_prefix,
             "url": config.url,
             "publisher": config.publisher,
             "data-dictionary": [
@@ -222,6 +226,10 @@ def DataCsvToObject(config):
         "code-systems": [],
         "harmony": [],
     }
+
+    if config.config is not None:
+        if "missing" in config.config:
+            dataset['config'] = config.config['missing'].split(",")
 
     if config.remote_data_access is not None:
         dataset['study']['remote_access'] = {

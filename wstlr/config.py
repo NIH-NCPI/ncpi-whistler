@@ -15,14 +15,14 @@ class Configuration:
     def __init__(self, cfgfile):
         self.filename = cfgfile.name
 
-        self.config = safe_load(cfgfile)
+        self.configuration = safe_load(cfgfile)
         self.host = None
 
         # This is the data dictionary study object
         self.study_dd = None
 
-        if 'anvil_data_model' in self.config:
-            model_config = self.config['anvil_data_model']
+        if 'anvil_data_model' in self.configuration:
+            model_config = self.configuration['anvil_data_model']
             die_if('filename' not in model_config,
                 "anvil_data_model config is missing property, 'filename'.")
 
@@ -34,7 +34,7 @@ class Configuration:
             self.study_dd = jsonp.study
         
         else:
-            self.study_dd = DdStudy(self.study_id, self.study_desc)
+            self.study_dd = DdStudy(self.study_id, self.study_desc, url_base=self.dd_prefix)
             
             csvp = None
             for table_name, table in self.dataset.items():
@@ -57,10 +57,10 @@ class Configuration:
             self.study_dd = csvp.study
 
     def from_config(self, key, default=None, required=False):
-        die_if(required and key not in self.config, 
+        die_if(required and key not in self.configuration, 
             "Required configuration parameter, '{key}' is missing from file, "
             "'{self.filename}'.")
-        return self.config.get(key, default)
+        return self.configuration.get(key, default)
 
     def parse_args(self, args):
         self.host = args.host
@@ -85,9 +85,13 @@ class Configuration:
 
     @property
     def dd_prefix(self):
-        if 'dd_prefix' in self.config:
+        if 'dd_prefix' in self.configuration:
             return self.from_config('dd_prefix')
         return self.identifier_prefix
+
+    @property 
+    def config(self):
+        return self.from_config('config', required=False)
 
     @property
     def identifier_prefix(self):

@@ -148,7 +148,15 @@ class ResourceLoader:
             if type(identifiers) is not list:
                 identifiers = [identifiers]
 
+            #pdb.set_trace()
+            official = None
             for identifier in identifiers:
+                # For situations where the system doesn't exactly match our
+                # identifier-prefix (such as common data-dictionary terms)
+                # we'll use the official one. 
+                if identifier.get('use') == "official":
+                    official = identifier
+
                 if 'system' in identifier:
                     with load_lock:
                         id_match = self.identifier_rx.match(identifier['system'])
@@ -157,6 +165,8 @@ class ResourceLoader:
                         if 'value' not in identifier:
                             pdb.set_trace()
                         return (identifier['system'], identifier['value'])
+            if official is not None:
+                return (official['system'], official['value'])
         return None
 
     def launch_threads(self):
@@ -298,6 +308,7 @@ class ResourceLoader:
         if resource_type in ['CodeSystem', 'ValueSet', 'ConceptMap']:
             result = self.client.load(resource_type, resource, validate_only)
             if result['status_code'] < 300:
+                #print(result)
                 (system, uniqid) =  self.get_identifier(result['response'])
                 cache_id = True
         else:
