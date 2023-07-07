@@ -231,10 +231,11 @@ def exec():
         help="When loading resources into FHIR, this indicates a resourceType that will be loaded. --resource may be specified more than once."
     )
     parser.add_argument(
-        "--exit-on-dupes",
+        "--permit-cache-dupes",
         action='store_true',
-        help="Exit with an error message if duplicate identifiers are encountered during the cache's load. "
+        help="If set, whistler will not exit when duplicate IDs are encountered by during caching. "
     )
+    
     args = parser.parse_args(sys.argv[1:])
 
     if args.bundle_only:
@@ -335,7 +336,7 @@ def exec():
                                         valid_patterns=cfg.fhir_id_patterns)
             fhir_client = FhirClient(host_config[host], 
                                         idcache=cache_remote_ids,
-                                        exit_on_dupes=args.exit_on_dupes)
+                                        exit_on_dupes=not args.permit_cache_dupes)
 
             #cache = IdCache(config['study_id'], fhir_client.target_service_url)
             loader = ResourceLoader(cfg.identifier_prefix, 
