@@ -13,6 +13,9 @@ from argparse import ArgumentParser, FileType
 import sys
 import pdb
 
+
+from rich import print 
+
 __version__ = "0.1.0"
 
 def test_exclusion(filename, exclusion_list):
@@ -154,7 +157,10 @@ def exec():
                     else:
                         print(f"An error occurred loading {fn}")
                         print(resp['status_code'])
-                        print(resp['issue'])
+                        if 'issue' in resp:
+                            print(resp['issue'])
+                        else:
+                            print(resp)
                         pdb.set_trace()
             else:
                 excluded_list.append(fn)
