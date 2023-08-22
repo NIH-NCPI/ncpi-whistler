@@ -27,6 +27,7 @@ from threading import Lock, current_thread, main_thread
 import datetime
 
 from rich import print 
+from rich.progress import track
 
 from wstlr.bundle import Bundle, ParseBundle, RequestType
 
@@ -169,7 +170,7 @@ class ResourceLoader:
                 return (official['system'], official['value'])
         return None
 
-    def launch_threads(self):
+    def launch_threads(self, msg=None):
         """This should be called before the application exits
 
         There is no harm in calling it even during a non-asynchronous run
@@ -177,10 +178,17 @@ class ResourceLoader:
         if self.thread_executor is not None:
             start_time = datetime.datetime.now()
             self.records_loaded += len(self.load_queue)
-            print(f"Launching threads ({len(self.load_queue)} | {self.records_loaded})")
-            for entry in concurrent.futures.as_completed(self.load_queue):
-                entry.result()
-            print(f"Thread queue ({len(self.load_queue)}) completed in {(datetime.datetime.now() - start_time).seconds}s")
+            #if msg is None:
+            #    msg = f"Launching threads ({len(self.load_queue)} | {self.records_loaded})"
+            #print(f"Launching threads ({len(self.load_queue)} | {self.records_loaded})")
+
+            if msg is not None:
+                for entry in track(concurrent.futures.as_completed(self.load_queue), msg):
+                    entry.result()
+            else:
+                for entry in concurrent.futures.as_completed(self.load_queue):
+                    entry.result()
+            #print(f"Thread queue ({len(self.load_queue)}) completed in {(datetime.datetime.now() - start_time).seconds}s. {len(self.delayed_loading)} remain unloaded.")
             self.load_queue = []
 
     def save_fails(self, filename):
@@ -224,7 +232,7 @@ class ResourceLoader:
     
     def cleanup_threads(self):
         if self.thread_executor is not None:
-            self.launch_threads()
+            self.launch_threads(msg="Cleanup")
 
             self.thread_executor.shutdown(wait=True)
 
@@ -259,8 +267,9 @@ class ResourceLoader:
         if resources is None:
             resources = self.delayed_loading
 
-        delayed_again = []
-        for group_name, resource in resources:
+        delayed_again = []  
+
+        for group_name, resource in track(resources, f"Retrying {len(resources)} resources:"):
             try:
                 with load_lock:
                     if resource['resourceType'] == 'ObservationDefinition':
@@ -358,6 +367,7 @@ class ResourceLoader:
             while retry_count > 0:
                 retry_count -= 1
                 try:
+                    #pdb.set_trace()
                     result = self.client.post(resource_type, 
                                             resource, 
                                             identifier=resource_identifier,
@@ -365,9 +375,12 @@ class ResourceLoader:
                                             identifier_type=identifier_type,
                                             validate_only=validate_only,
                                             retry_count=1)
-                except:
-                    print(f"What is going on? {resource}?")
+                except Exception as e:
+                    print(f"Exception occured when loading {resource_type}: {e}")
+                    print(resource)
+                    #print(result)
                     pdb.set_trace()
+                    print(f"{system}|{resource_identifier} {identifier_type}")
                 if result['status_code'] < 300:
                     retry_count = 0
 
@@ -424,7 +437,7 @@ class ResourceLoader:
 
 
     def print_summary(self):
-        print("Load Summary\n")
+        print(f"Load Summary {self.study_id}\n")
         print("Module Name                      Resource Type            #         % of Total")
         print("-------------------------------  ------------------------ --------- ----------")
         for modulename in sorted(self.successful_loads.keys()):
@@ -554,10 +567,10 @@ def exec():
             # Make sure we clear out the queue in case there are some 
             # things there that these reloads depend on
             #pdb.set_trace()
-            loader.launch_threads()
+            loader.launch_threads(msg=f"Attempting to load {len(loader.delayed_loading)} left-overs. ")
 
-            print(f"Attempting to load {len(loader.delayed_loading)} left-overs. ")
-            loader.retry_loading()
+            #print(f"Attempting to load {len(loader.delayed_loading)} left-overs. ")
+            loader.retry_loading(msg=f"Attempting to load {len(loader.delayed_loading)} left-overs. ")
             max_final_attempts -= 1
 
     # Launch anything that was lingering in the queue

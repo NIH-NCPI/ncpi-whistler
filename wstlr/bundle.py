@@ -22,7 +22,8 @@ from argparse import ArgumentParser, FileType
 from wstlr import get_host_config
 import sys
 from pathlib import Path
-
+from rich import print 
+from rich.progress import track
 import pdb
 
 
@@ -33,14 +34,17 @@ def ParseBundle(bundle_file, resource_consumers):
     content = json.load(bundle_file)
     if content is not None:
 
+        print(f"Loading content from file, {bundle_file.name}")
         # We expect there to be at least one key that points
         # to an array of resource records. If there are more
         # that is fine. Each will be processed independently
         # and the key will be passed as the "resource_group"
         for resource_group in content.keys():
-            for resource in content[resource_group]:
+            for resource in track(content[resource_group], 
+                                  f"Processing {len(content[resource_group])} resources for {resource_group}"):
+                #for resource in content[resource_group]:
                 #print(resource)
-
+                #print(f"{resource_group}:{resource}")
                 for consumer in resource_consumers:
                     consumer(resource_group, resource)
         return content.keys()

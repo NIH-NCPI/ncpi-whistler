@@ -23,6 +23,8 @@ from wstlr.load import ResourceLoader
 from wstlr.idcache import IdCache
 from wstlr.bundle import Bundle, ParseBundle, RequestType
 
+from rich.progress import track
+
 from ncpi_fhir_client.ridcache import RIdCache
 from wstlr.config import Configuration
 
@@ -45,7 +47,10 @@ def run_whistle(whistlefile, inputfile, harmonydir, projectorlib, outputdir, whi
                     '-verbose',
                     '-output_dir', outputdir]
     #print(" ".join(command))
-    result = run(command, capture_output=True)
+    for cmd in track([command], description="Running Whistle"):
+        result = run(cmd, capture_output=True)
+
+    # result = run(command, capture_output=True)
 
     if result.returncode != 0:
         print(f"Std out    : {result.stdout.decode()}")
