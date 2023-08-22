@@ -110,6 +110,10 @@ class Configuration:
         return self.from_config('code_harmonization_dir', default='harmony')
 
     @property
+    def annotations(self):
+        return self.from_config('annotations', default={})
+
+    @property
     def curies(self):
         return self.from_config('curies', default={})
 

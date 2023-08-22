@@ -221,7 +221,8 @@ def DataCsvToObject(config):
                     "study": config.study_id,
                     "values": []
                 }
-            ]
+            ],
+            "annotations": config.annotations
         },
         "code-systems": [],
         "harmony": [],
