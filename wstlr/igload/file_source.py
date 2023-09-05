@@ -22,6 +22,6 @@ def load_resources(config):
             resource = json.load(f)
 
         if resource is not None:
-            resources[filename] = resource
+            resources[filename.split("/")[-1]] = resource
 
     return resources

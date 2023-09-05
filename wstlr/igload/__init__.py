@@ -127,9 +127,10 @@ def exec():
         excluded_list = []
         # First, let's try deleting any that may already exist
         deleted_items = []
+        #pdb.set_trace()
         if args.force_overwrite:
             for fn,data in resources.items():
-                if fn in resource_list and not test_exclusion(fn, args.exclude):
+                if data['resourceType'] in resource_list and not test_exclusion(fn, args.exclude):
                     response = fhir_client.delete_by_query(data['resourceType'], qry=f"url={data['url']}")
 
                     if len(response) > 0:
@@ -145,10 +146,10 @@ def exec():
                                 print(resp)
                                 pdb.set_trace()
                                 print(len(resp))
-                if len(deleted_items) > 0:
-                    print(f"Sleeping to give the backend time to catchup")
+            if len(deleted_items) > 0:
+                print(f"Sleeping to give the backend time to catchup")
 
-                    sleep(args.sleep_time)
+                sleep(args.sleep_time + len(deleted_items))
 
         # Iterate over the list and load them one at a time
         for fn,data in resources.items():
