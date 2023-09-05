@@ -53,6 +53,11 @@ def exec():
              """any exclude entry will be skipped. Exclusions match case. """
     )
     parser.add_argument(
+        "--force-overwrite", 
+        action='store_true',
+        help="Replace resources that are already loaded in the target FHIR server."
+    )
+    parser.add_argument(
         "-c",
         "--content",
         type = FileType('rt'),
@@ -122,32 +127,33 @@ def exec():
         excluded_list = []
         # First, let's try deleting any that may already exist
         deleted_items = []
-        for fn,data in resources.items():
-            if fn in resource_list and not test_exclusion(fn, args.exclude):
-                response = fhir_client.delete_by_query(data['resourceType'], qry=f"url={data['url']}")
+        if args.force_overwrite:
+            for fn,data in resources.items():
+                if fn in resource_list and not test_exclusion(fn, args.exclude):
+                    response = fhir_client.delete_by_query(data['resourceType'], qry=f"url={data['url']}")
 
-                if len(response) > 0:
-                    if type(response) is dict:
-                        response = [response]
+                    if len(response) > 0:
+                        if type(response) is dict:
+                            response = [response]
 
-                    for resp in response:
-                        try:
-                            print(f"Deleting {fn} - {resp['status_code']}")
-                            if fn not in deleted_items:
-                                deleted_items.append(fn)
-                        except:
-                            print(resp)
-                            pdb.set_trace()
-                            print(len(resp))
-            if len(deleted_items) > 0:
-                print(f"Sleeping to give the backend time to catchup")
+                        for resp in response:
+                            try:
+                                print(f"Deleting {fn} - {resp['status_code']}")
+                                if fn not in deleted_items:
+                                    deleted_items.append(fn)
+                            except:
+                                print(resp)
+                                pdb.set_trace()
+                                print(len(resp))
+                if len(deleted_items) > 0:
+                    print(f"Sleeping to give the backend time to catchup")
 
-                sleep(args.sleep_time)
+                    sleep(args.sleep_time)
 
         # Iterate over the list and load them one at a time
         for fn,data in resources.items():
             if (data['resourceType'] in resource_list or fn in resource_list) and not test_exclusion(fn, exclusion_list):
-                response = fhir_client.load(data['resourceType'], data)
+                response = fhir_client.load(data['resourceType'], data, skip_insert_if_present=not args.force_overwrite)
                 if type(response) is dict:
                     response = [response]
                 
