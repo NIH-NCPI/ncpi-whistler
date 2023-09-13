@@ -1,5 +1,3 @@
-__version__="0.0.1"
-
 import traceback
 from pathlib import Path
 from yaml import safe_load
@@ -13,6 +11,7 @@ import re
 
 system_base = "https://nih-ncpi.github.io/ncpi-fhir-ig"
 
+
 class DDVariableType(Enum):
     StringType = 1
     IntegerType = 2
@@ -21,22 +20,34 @@ class DDVariableType(Enum):
     DateType = 5
     BooleanType = 6
 
-# The formal representation we'll pass to whistle will be the first entry in 
-# each list Because categoricals actually do require values, the underlying 
-# functionality should default to capturing strings if there are inadequate 
+
+# The formal representation we'll pass to whistle will be the first entry in
+# each list Because categoricals actually do require values, the underlying
+# functionality should default to capturing strings if there are inadequate
 # enumerated values in the data dictionary provided
 _data_dictionary_type_map = OrderedDict()
-_data_dictionary_type_map[DDVariableType.StringType] = ['string', '', 'str', 'identifier']
-_data_dictionary_type_map[DDVariableType.IntegerType] = ['int', 'integer']
-_data_dictionary_type_map[DDVariableType.BooleanType] = ['boolean','bool']
-_data_dictionary_type_map[DDVariableType.FloatType] = ['number', 'decimal', 'float']
-_data_dictionary_type_map[DDVariableType.CategoricalType] = ['string', 'integer, encoded value', 'enumeration']
-_data_dictionary_type_map[DDVariableType.DateType] = ['date']
+_data_dictionary_type_map[DDVariableType.StringType] = [
+    "string",
+    "",
+    "str",
+    "identifier",
+]
+_data_dictionary_type_map[DDVariableType.IntegerType] = ["int", "integer"]
+_data_dictionary_type_map[DDVariableType.BooleanType] = ["boolean", "bool"]
+_data_dictionary_type_map[DDVariableType.FloatType] = ["number", "decimal", "float"]
+_data_dictionary_type_map[DDVariableType.CategoricalType] = [
+    "string",
+    "integer, encoded value",
+    "enumeration",
+]
+_data_dictionary_type_map[DDVariableType.DateType] = ["date"]
+
 
 class TableType(Enum):
     Default = 1
     Embedded = 2
     Grouped = 3
+
 
 class InvalidType(Exception):
     def __init__(self, bad_type):
@@ -46,13 +57,15 @@ class InvalidType(Exception):
         return f"""Unrecognized variable type, {dd_type}. Please see """
         """about adding this type to the categories in Whistler.\n"""
 
+
 def StandardizeDdType(dd_type):
     for dt in _data_dictionary_type_map.keys():
-        the_types =  _data_dictionary_type_map[dt]
+        the_types = _data_dictionary_type_map[dt]
         if dd_type.lower() in _data_dictionary_type_map[dt]:
             return _data_dictionary_type_map[dt][0]
 
     raise InvalidType(dd_type)
+
 
 def determine_table_type(table_def):
     """Checks for specific keys to determine which TableType applies"""
@@ -61,6 +74,7 @@ def determine_table_type(table_def):
     if "group_by" in table_def:
         return TableType.Grouped
     return TableType.Default
+
 
 def example_config(writer, auth_type=None):
     """Returns a block of text containing one or all possible auth modules example configurations"""
@@ -99,46 +113,60 @@ def get_host_config():
 
     if not host_config_filename.is_file() or host_config_filename.stat().st_size == 0:
         example_config(sys.stdout)
-        die_if(True, f""" 
+        die_if(
+            True,
+            f""" 
 A valid host configuration file, fhir_hosts, must exist in cwd and was not 
 found. Example configuration has been written to stout providing examples 
-for each of the auth types currently supported.\n"""
+for each of the auth types currently supported.\n""",
         )
 
     return safe_load(host_config_filename.open("rt"))
+
 
 def die_if(do_die, msg, errnum=1):
     if do_die:
         sys.stderr.write(msg + "\n")
         sys.exit(errnum)
 
+
 xcleaner = re.compile(";\s+")
+
+
 def clean_values(valuestring):
     """I'm seeing some spaces in the value lists, but they aren't consistant, so we'll strip them out"""
     if valuestring is None:
         return ""
-    return re.sub(xcleaner, ';', valuestring.strip())
+    return re.sub(xcleaner, ";", valuestring.strip())
+
 
 def fix_fieldname(fieldname):
-    return fieldname.lower().replace(" ", "_").replace(")", "").replace("(", "").replace("/", "_")
+    return (
+        fieldname.lower()
+        .replace(" ", "_")
+        .replace(")", "")
+        .replace("(", "")
+        .replace("/", "_")
+    )
 
 
-def dd_system_url(url_base, term_type, study_component, table_name, varname ):
+def dd_system_url(url_base, term_type, study_component, table_name, varname):
     if varname is None:
         return f"{url_base}/{term_type}/data-dictionary/{fix_fieldname(table_name)}"
     else:
         return f"{url_base}/{term_type}/data-dictionary/{fix_fieldname(table_name)}/{fix_fieldname(varname)}"
 
 
-_boolean_values = set(['true', 'yes', '1', 1, True])
+_boolean_values = set(["true", "yes", "1", 1, True])
+
+
 def evaluate_bool(value=None):
     global _boolean_values
     val_type = type(value)
     if val_type is bool:
         return value
-    
+
     if val_type is str:
         value = value.lower()
 
     return value in _boolean_values
-    
