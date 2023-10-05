@@ -67,8 +67,8 @@ def BuildObsComponentQuantity(study, table_name, varname, required value) {
 //   tables - list of DdTable objects
 //   id_colname
 {% for table in tables %} 
-def AddSourceDataObservation-{{table.table_name}}(study, id, row_data) {
-    var table_name: "{{table.table_name}}";
+def AddSourceDataObservation-{{table.name}}(study, id, row_data) {
+    var table_name: "{{table.name}}";
     var subject_id: row_data.{{table.id_col}};
     meta.tag[]: StudyMeta(study);
     {% if use_profiles -%}
@@ -105,31 +105,32 @@ def AddSourceDataObservation-{{table.table_name}}(study, id, row_data) {
 //   id_colname
 {% for table in tables -%} 
 {% if table.table_type == TableType.Embedded -%} 
-def ProcessSourceData-Obs-embedded-{{table.table_name}}(study, row) {
+def ProcessSourceData-Obs-embedded-{{table.name}}(study, row) {
     var id: $StrCat({{table.colnames}});
-    out source_data: AddSourceDataObservation-{{table.table_name}}(study, id, row.{{table.table_name}}[]);
+    out source_data: AddSourceDataObservation-{{table.name}}(study, id, row.{{table.name}}[]);
 }
-{% endif %}
-def ProcessSourceData-Obs-{{table.table_name}}(study, row) {
+{% else %}
+def ProcessSourceData-Obs-{{table.name}}(study, row) {
   {% if table.table_type == TableType.Default -%}
   var id: $StrCat({{table.colnames}});
-  out source_data: AddSourceDataObservation-{{table.table_name}}(study, id, row);
+  out source_data: AddSourceDataObservation-{{table.name}}(study, id, row);
   {% elif table.table_type == TableType.Embedded -%}
-  out source_data: ProcessSourceData-Obs-embedded-{{table.table_name}}(study, row.{{table.table_name}}[]);
+  out source_data: ProcessSourceData-Obs-embedded-{{table.name}}(study, row.{{table.name}}[]);
   {% elif table.table_type == TableType.Grouped -%}
   var id: $StrCat({{table.colnames}});
-  out source_data: AddSourceDataObservation-{{table.table_name}}(study, id, row.content[]);
+  out source_data: AddSourceDataObservation-{{table.name}}(study, id, row.content[]);
   {% endif %}
 }
+{% endif %}
 {% endfor -%} 
 
 // Enumerate over tables one last time to build the main process function
 def BuildRawDataObs(resource) {
 {% for table in tables -%}
   {% if table.table_type == TableType.Embedded %}
-  $this: ProcessSourceData-Obs-{{table.table_name}}(resource.study, resource.{{table.parent_table}}[]);
+  $this: ProcessSourceData-Obs-embedded-{{table.name}}(resource.study, resource.{{table.parent_table}}[]);
   {% else -%}
-  $this: ProcessSourceData-Obs-{{table.table_name}}(resource.study, resource.{{table.table_name}}[]);
+  $this: ProcessSourceData-Obs-{{table.name}}(resource.study, resource.{{table.name}}[]);
   {% endif -%}
 {% endfor %}
 }
