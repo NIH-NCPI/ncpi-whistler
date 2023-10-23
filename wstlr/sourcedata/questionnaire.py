@@ -14,8 +14,6 @@ from wstlr.sourcedata import (
     _float_types,
     identifier_columns,
     MissingKeyColumns,
-    DdTable,
-    DdVariable,
 )
 
 from pathlib import Path

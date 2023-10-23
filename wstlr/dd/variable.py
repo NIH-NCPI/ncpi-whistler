@@ -26,6 +26,8 @@ import re
 import sys
 import pdb
 
+from wstlr.extractor import fix_fieldname
+
 class DdVariable:
     def __init__(self, 
                     study_name, 
@@ -37,6 +39,7 @@ class DdVariable:
         self.study_name = study_name
         self.table_name = table_name
         self.varname = kwargs["variable_name"]
+        self.fieldname = fix_fieldname(self.varname)
         self.description = kwargs.get("description", "")
         self.data_type = self.parse_data_type(kwargs.get("data_type", "string"))
         self.enumerations = self.parse_enums(kwargs.get("enumerations"))
@@ -77,6 +80,7 @@ class DdVariable:
 
     def parse_data_type(self, data_type):
         for dt in _data_dictionary_type_map.keys():
+            #pdb.set_trace()
             if data_type.lower() in _data_dictionary_type_map[dt]:
                 return _data_dictionary_type_map[dt][0]
         # if it doesn't match, why not just report the problem and exit

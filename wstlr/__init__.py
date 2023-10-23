@@ -34,11 +34,16 @@ _data_dictionary_type_map[DDVariableType.StringType] = [
 ]
 _data_dictionary_type_map[DDVariableType.IntegerType] = ["int", "integer"]
 _data_dictionary_type_map[DDVariableType.BooleanType] = ["boolean", "bool"]
-_data_dictionary_type_map[DDVariableType.FloatType] = ["number", "decimal", "float"]
+_data_dictionary_type_map[DDVariableType.FloatType] = [
+    "number",
+    "decimal",
+    "float",
+    "numeric",
+]
 _data_dictionary_type_map[DDVariableType.CategoricalType] = [
+    "enumeration",
     "string",
     "integer, encoded value",
-    "enumeration",
 ]
 _data_dictionary_type_map[DDVariableType.DateType] = ["date"]
 

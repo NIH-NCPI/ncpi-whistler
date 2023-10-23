@@ -144,8 +144,8 @@ def exec():
                                     deleted_items.append(fn)
                             except:
                                 print(resp)
-                                pdb.set_trace()
                                 print(len(resp))
+                                pdb.set_trace()
             if len(deleted_items) > 0:
                 print(f"Sleeping to give the backend time to catchup")
 

@@ -411,7 +411,7 @@ class ResourceLoader:
             last_error = None
             if 'issue' not in result['response']:
                 print(pformat(result['response']))
-                pdb.set_trace()
+                #pdb.set_trace()
             for issue in result['response']['issue']:
                 if issue['severity'] == 'error':
                     if error_count < 5:
@@ -459,7 +459,7 @@ def exec():
     parser = ArgumentParser(
         description="Load whistle output file into selected FHIR server."
     )
-    pdb.set_trace()
+    #pdb.set_trace()
     parser.add_argument(
         "--host",
         choices=env_options,
@@ -543,8 +543,7 @@ def exec():
     fhir_client = FhirClient(host_config[args.host], idcache=cache_remote_ids)
 
     #cache = IdCache(config['study_id'], fhir_client.target_service_url)
-    print(args)
-    pdb.set_trace()
+    
     loader = ResourceLoader(args.identifier_prefix, fhir_client, resource_list=args.resource, module_list=args.module, study_id=args.study_id, idcache=cache_remote_ids, threaded=args.threaded)
 
     if args.threaded:

@@ -42,6 +42,7 @@ class DdStudy:
             filename = config.anvil_data_model
 
     def add_table(self, name, description=""):
+        #pdb.set_trace()
         self.tables[name] = DdTable(name, 
                                     self.name,
                                     description=description, 

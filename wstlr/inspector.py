@@ -38,7 +38,9 @@ def CheckForUse(identifiers):
             official_count = 1
     if official_count != 1:
         print(identifiers)
-        pdb.set_trace()
+        print(f"use = Official doesn't appear in the the identifier: {identifiers}")
+        sys.exit(1)
+
     return official_count == 1
 
 
@@ -63,7 +65,7 @@ class ResourceInspector:
         if 'resourceType' not in resource:
             print(resource)
             print("No resourceType was found. As such, this is not a valid resource")
-            pdb.set_trace()
+            sys.exit(1)
 
         ReportError('resourceType' not in resource, resource, "There is no resourceType specified in this resource")
 
@@ -84,7 +86,8 @@ class ResourceInspector:
         if 'system' not in identifier:
             print(resource)
             print(identifier)
-            pdb.set_trace()
+            print("identifier doesn't have a system")
+            sys.exit(1)
         idval = f"{identifier['system']}:{identifier['value']}"
         #print(idval)
 

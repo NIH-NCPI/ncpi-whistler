@@ -84,14 +84,14 @@ def AddSourceDataObservation-{{table.name}}(study, id, row_data) {
     subject: Reference_Key_Identifier(study, "Patient", subject_id);
 
     // Variables
-    {% for var in table.variables -%}
-      {% if var.vartype == "enumeration" -%} 
+    {% for var in table.vardata -%}
+      {% if var.data_type == "enumeration" -%} 
     component[]: BuildObsComponentCategorical(study, table_name, "{{var.varname}}", row_data.{{var.fieldname}});
-      {% elif var.vartype == "string" -%} 
+      {% elif var.data_type == "string" -%} 
     component[]: BuildObsComponentString(table_name, "{{var.varname}}", row_data.{{var.fieldname}});
-      {% elif var.vartype == "integer" -%}
+      {% elif var.data_type == "integer" -%}
     component[]: BuildObsComponentInteger(study, table_name, "{{var.varname}}", row_data.{{var.fieldname}});
-      {% elif var.vartype == "float" -%}
+      {% elif var.data_type == "float" -%}
     component[]: BuildObsComponentQuantity(study, table_name, "{{var.varname}}", row_data.{{var.fieldname}});
       {% endif -%}
     {% endfor -%}

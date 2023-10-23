@@ -6,6 +6,7 @@ from wstlr import die_if, system_base, dd_system_url
 from wstlr.dd.variable import DdVariable
 import pdb
 
+_default_subject_id = "subject_id"
 
 class DdTable:
     def __init__(self, name, study_name, description="", **kwargs):  #
@@ -28,10 +29,28 @@ class DdTable:
         self.variables = {}
         self.key = []
         self.subject_id = kwargs.get("subject_id")
+        #pdb.set_trace()
+        if self.subject_id is None:
+            self.subject_id = DdTable.default_subject_id()
+
+    @classmethod 
+    def default_subject_id(cls, colname=None):
+        global _default_subject_id
+        if colname is None:
+            return _default_subject_id
+        _default_subject_id = colname
 
     def add_to_varname_lookup(self, lkup):
         for varname, variable in self.variables.items():
             variable.add_to_varname_lookup(lkup)
+
+    @property
+    def vardata(self):
+        vars = []
+
+        for varname, variable in self.variables.items():
+            vars.append(variable)
+        return vars
 
     @property
     def desc(self):
@@ -41,7 +60,7 @@ class DdTable:
 
     @property
     def id_col(self):
-        return "subject_id"
+        return self.subject_id
 
     def add_variable(self, **kwargs):
         var = DdVariable(

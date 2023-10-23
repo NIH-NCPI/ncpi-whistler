@@ -63,8 +63,10 @@ class DdVariable:
             self.vartype = "float"
 
 
-class DdTable:
+class DdTable_:
+    _default_subject_id = "subject_id"
     def __init__(self, ddtable, ddconfig, id_colname):
+        
         self.table_name = ddtable["table_name"]
 
         self.desc = ddtable.get("desc")

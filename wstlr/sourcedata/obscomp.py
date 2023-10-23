@@ -18,10 +18,10 @@ from wstlr.sourcedata import (
     _integer_types,
     _float_types,
     identifier_columns,
-    MissingKeyColumns,
-    DdTable,
-    DdVariable,
+    MissingKeyColumns
 )
+
+from wstlr.dd.table import DdTable
 from pathlib import Path
 from yaml import safe_load
 import sys
@@ -146,7 +146,6 @@ def exec():
                         )
                     )
         """
-        # pdb.set_trace()
         template_dir = Path(__file__).resolve().parent / "templates"
         with open(
             template_dir / "observation_w_components.wstl", "rt"

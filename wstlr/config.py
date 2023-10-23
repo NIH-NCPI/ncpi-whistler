@@ -8,6 +8,8 @@ from yaml import safe_load
 from wstlr.dd.json_parser import JsonParser
 from wstlr.dd.csv_parser import CsvParser
 from wstlr.dd.study import DdStudy
+from wstlr.dd.table import DdTable
+from wstlr.extractor import fix_fieldname
 
 import pdb
 
@@ -17,6 +19,9 @@ class Configuration:
 
         self.configuration = safe_load(cfgfile)
         self.host = None
+
+        if self.configuration.get("id_colname") is not None:
+            DdTable.default_subject_id(fix_fieldname(self.configuration["id_colname"]))
 
         # This is the data dictionary study object
         self.study_dd = None
