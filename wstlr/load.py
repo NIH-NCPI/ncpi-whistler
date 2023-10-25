@@ -168,7 +168,7 @@ class ResourceLoader:
                         return (identifier['system'], identifier['value'])
             if official is not None:
                 return (official['system'], official['value'])
-        return None
+        return (None, None)
 
     def launch_threads(self, msg=None):
         """This should be called before the application exits
@@ -286,9 +286,27 @@ class ResourceLoader:
         with load_lock:
             self.delayed_loading = delayed_again
 
-    def consume_validate(self, group_name, resource):
+    def consume_validate(self, group_name, resource, halt_on_warn=False):
         """Do we even care to use async with validate? I'm skipping it for now"""
-        self.load_resource(group_name, resource, validate_only=True)
+        result = self.load_resource(group_name, resource, validate_only=True)
+
+        if 'response' in result:
+            response = result['response']
+
+            if response['resourceType'] != "OperationOutcome":
+                print(result)
+                print("The response resourceType should have been 'OperationOutcome")
+                sys.exit(1)
+            
+            do_exit = False
+            for issue in response['issue']:
+                if issue['severity'] == 'error' or halt_on_warn:
+                    print(issue)
+                    do_exit=True
+            
+            if do_exit:
+                sys.exit(1)
+
 
     def load_resource(self, group_name, resource, validate_only=False):
         cache_id = False
@@ -318,8 +336,13 @@ class ResourceLoader:
             result = self.client.load(resource_type, resource, validate_only)
             if result['status_code'] < 300:
                 #print(result)
-                (system, uniqid) =  self.get_identifier(result['response'])
-                cache_id = True
+
+                # Validation responses without any warnings or errors have no
+                # response entry
+                if 'response' in result:
+                    (system, uniqid) =  self.get_identifier(result['response'])
+                    if system is not None:
+                        cache_id = True
         else:
             identifier_type='identifier'
             cache_id = self.idcache is not None
@@ -397,12 +420,14 @@ class ResourceLoader:
             self.successful_loads[group_name][resource_type] += 1
             self.resource_summary[resource_type] += 1
             #pdb.set_trace()
-            self.studyids.add_id(resource_type, result['response']['id'])
 
-            if cache_id and 'id' in result['response']:
-                if system is None:
-                    pdb.set_trace()
-                self.idcache.store_id(resource_type, system, uniqid, result['response']['id'], no_db=True)
+            if 'id' in result['response']:
+                self.studyids.add_id(resource_type, result['response']['id'])
+
+                if cache_id:
+                    if system is None:
+                        pdb.set_trace()
+                    self.idcache.store_id(resource_type, system, uniqid, result['response']['id'], no_db=True)
 
         else:
             skipped_warnings = 0
