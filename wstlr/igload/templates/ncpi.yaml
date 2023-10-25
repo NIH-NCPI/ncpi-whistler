@@ -20,9 +20,10 @@ NCPI-FHIR-IG:
   # ValueSets that were produced by publisher, simply comment out the 
   # StructureDefinition option.
   resources: 
-  -  CodeSystem
-  -  ValueSet
-  -  StructureDefinition
+  - CodeSystem
+  - ValueSet
+  - StructureDefinition
+  - ImplementationGuide
 
   # If there are items that should be ignored, at them to the exclude-wildcards
   # Each entry will be treated as surrounded by wildcards. 

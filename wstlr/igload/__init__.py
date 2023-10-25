@@ -25,6 +25,44 @@ def test_exclusion(filename, exclusion_list):
                 return True
     return False
 
+def delete_resource(fn ,fhir_client, data, deleted_items):
+    # Query by URL, since we may not be using the same ID as was provided 
+    # previously
+    response = fhir_client.delete_by_query(data['resourceType'], qry=f"url={data['url']}")
+
+    if len(response) > 0:
+        if type(response) is dict:
+            response = [response]
+
+        for resp in response:
+            try:
+                print(f"Deleting {fn} - {resp['status_code']}")
+                if fn not in deleted_items:
+                    deleted_items.append(fn)
+            except:
+                print(resp)
+                print(len(resp))
+                pdb.set_trace()
+    return response
+
+def load_resource(fn, fhir_client, data, force_overwrite):
+    response = fhir_client.load(data['resourceType'], data, skip_insert_if_present=not force_overwrite)
+    if type(response) is dict:
+        response = [response]
+    
+    for resp in response:
+        if resp['status_code'] < 300:
+            print(f"Loading {fn} - {resp['status_code']}")
+        else:
+            print(f"An error occurred loading {fn}")
+            print(resp['status_code'])
+            if 'issue' in resp:
+                print(resp['issue'])
+            else:
+                print(resp)
+            pdb.set_trace()
+    return response
+
 def exec():
     host_config = get_host_config()
     env_options = sorted(host_config.keys())
@@ -129,48 +167,43 @@ def exec():
         deleted_items = []
         #pdb.set_trace()
         if args.force_overwrite:
+            ig = None
             for fn,data in resources.items():
                 if data['resourceType'] in resource_list and not test_exclusion(fn, args.exclude):
-                    response = fhir_client.delete_by_query(data['resourceType'], qry=f"url={data['url']}")
+                    if data['resourceType'] == "ImplementationGuide":
+                        ig = data
+                    else:
+                        response = delete_resource(fn, fhir_client, data, deleted_items)
 
-                    if len(response) > 0:
-                        if type(response) is dict:
-                            response = [response]
 
-                        for resp in response:
-                            try:
-                                print(f"Deleting {fn} - {resp['status_code']}")
-                                if fn not in deleted_items:
-                                    deleted_items.append(fn)
-                            except:
-                                print(resp)
-                                print(len(resp))
-                                pdb.set_trace()
+            if ig is not None:
+                response = delete_resource(fn, fhir_client, data, deleted_items)
+
             if len(deleted_items) > 0:
                 print(f"Sleeping to give the backend time to catchup")
 
                 sleep(args.sleep_time + len(deleted_items))
 
         # Iterate over the list and load them one at a time
+        ig = None
+        print(resource_list)
         for fn,data in resources.items():
+            #pdb.set_trace()
             if (data['resourceType'] in resource_list or fn in resource_list) and not test_exclusion(fn, exclusion_list):
-                response = fhir_client.load(data['resourceType'], data, skip_insert_if_present=not args.force_overwrite)
-                if type(response) is dict:
-                    response = [response]
-                
-                for resp in response:
-                    if resp['status_code'] < 300:
-                        print(f"Loading {fn} - {resp['status_code']}")
-                    else:
-                        print(f"An error occurred loading {fn}")
-                        print(resp['status_code'])
-                        if 'issue' in resp:
-                            print(resp['issue'])
-                        else:
-                            print(resp)
-                        pdb.set_trace()
+                if data['resourceType'] == "ImplementationGuide":
+                    print(f"\n\n--> IG: {fn}")
+                    ig = data
+                else:
+                    response = load_resource(fn, fhir_client, data, args.force_overwrite)
             else:
+                print(f"\nSkipping {fn}")
                 excluded_list.append(fn)
+            
+        if ig is not None:
+            pdb.set_trace()
+            response = load_resource(fn, fhir_client, ig, args.force_overwrite)
+            print(response)
+       
 
         print("Files Loaded: " + ", ".join(sorted(resources.keys())))
         print("Files Excluded: " + ", ".join(sorted(excluded_list)))
