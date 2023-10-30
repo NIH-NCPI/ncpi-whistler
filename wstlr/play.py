@@ -179,7 +179,7 @@ def exec():
     parser.add_argument(
         "--max-validations",
         type=int,
-        default=1000,
+        default=0,
         help="If validating instead of loading, this determines how many of a given resource type will be validated. Values less than one means no limit to the number of resources validated.",
     )
     parser.add_argument(
