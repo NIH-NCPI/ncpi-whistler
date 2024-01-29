@@ -148,6 +148,7 @@ def clean_values(valuestring):
 def fix_fieldname(fieldname):
     return (
         fieldname.lower()
+        .strip()
         .replace(" ", "_")
         .replace(")", "")
         .replace("(", "")
