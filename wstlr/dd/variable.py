@@ -16,25 +16,18 @@ object to represent a variable, the variable is a dictionary. So, ultimately,
 we need a simple class to iterate over the table data and populate the expected
 attributes based on the lookup table provided to the table loader.
 """
-from wstlr import (
-        evaluate_bool, 
-        _data_dictionary_type_map, 
-        system_base, 
-        dd_system_url
-)
+
+from wstlr import evaluate_bool, _data_dictionary_type_map, system_base, dd_system_url
 import re
 import sys
 import pdb
 
-from wstlr.extractor import fix_fieldname
+from wstlr import fix_fieldname
+
 
 class DdVariable:
-    def __init__(self, 
-                    study_name, 
-                    table_name, 
-                    url_base=system_base, 
-                    **kwargs):
-        self.url_base=url_base
+    def __init__(self, study_name, table_name, url_base=system_base, **kwargs):
+        self.url_base = url_base
 
         self.study_name = study_name
         self.table_name = table_name
@@ -49,20 +42,18 @@ class DdVariable:
         if self.consent_group is not None:
             self.study_component = f"{study_name}-{self.consent_group}"
 
-        self.url = dd_system_url(self.url_base, 
-                                    "CodeSystem", 
-                                    self.study_component, 
-                                    table_name, 
-                                    self.varname)
+        self.url = dd_system_url(
+            self.url_base, "CodeSystem", self.study_component, table_name, self.varname
+        )
 
-        # These are not currently used by Whistler, at least not in this way 
+        # These are not currently used by Whistler, at least not in this way
         # as of the time of writing this
         self.key_component = evaluate_bool(kwargs.get("key_component", False))
         self.required = evaluate_bool(kwargs.get("required", False))
         self.notes = kwargs.get("notes", "")
 
     def add_to_varname_lookup(self, lkup):
-        desc = self.desc 
+        desc = self.desc
 
         if desc != self.varname:
             lkup[desc] = self.varname
@@ -80,13 +71,15 @@ class DdVariable:
 
     def parse_data_type(self, data_type):
         for dt in _data_dictionary_type_map.keys():
-            #pdb.set_trace()
+            # pdb.set_trace()
             if data_type.lower() in _data_dictionary_type_map[dt]:
                 return _data_dictionary_type_map[dt][0]
         # if it doesn't match, why not just report the problem and exit
-        sys.stderr.write(f"""Unrecognized variable type, {data_type}. """
+        sys.stderr.write(
+            f"""Unrecognized variable type, {data_type}. """
             """Please see about adding this type to the categories in """
-            """Whistler.\n""")
+            """Whistler.\n"""
+        )
         sys.exit(1)
 
     def parse_enums(self, values):
@@ -99,14 +92,14 @@ class DdVariable:
             splitter = ";"
 
             if splitter not in values:
-                if '\n' in values:
-                    splitter='\n'
+                if "\n" in values:
+                    splitter = "\n"
             split_values = values.split(splitter)
         else:
             split_values = values
         for entry in split_values:
             if "=" in entry:
-                code,desc = entry.split("=")[0:2]
+                code, desc = entry.split("=")[0:2]
                 if code not in transformed_values:
                     transformed_values[code.strip()] = desc.strip()
             else:
@@ -121,15 +114,15 @@ class DdVariable:
             "varname": self.varname,
             "desc": self.desc,
             "type": self.data_type,
-            "values": self.values_for_json()
+            "values": self.values_for_json(),
         }
-        if len(obj['values']) > 0:
-            obj['values-url'] = self.url
-            obj['values-details'] = {
+        if len(obj["values"]) > 0:
+            obj["values-url"] = self.url
+            obj["values-details"] = {
                 "table-name": self.table_name,
-                "varname": self.varname
+                "varname": self.varname,
             }
-        return obj 
+        return obj
 
     def obj_as_dd(self):
         """Build out dd entries for the variable's whistle input"""
@@ -137,33 +130,33 @@ class DdVariable:
             "varname": self.varname,
             "desc": self.desc,
             "type": self.data_type,
-            "values": self.values_for_json()
+            "values": self.values_for_json(),
         }
-        if len(obj['values']) > 0:
-            obj['values-url'] = self.url
-            obj['values-details'] = {
+        if len(obj["values"]) > 0:
+            obj["values-url"] = self.url
+            obj["values-details"] = {
                 "table-name": self.table_name,
-                "varname": self.varname
+                "varname": self.varname,
             }
-        return obj 
+        return obj
 
     def obj_as_cs(self):
-        """Prepare for dumping to the whistle input json file for """
+        """Prepare for dumping to the whistle input json file for"""
         """code-system"""
         obj = {
             "varname": self.varname,
             "url": self.url,
             "study": self.study_name,
             "table_name": self.table_name,
-            "values": self.values_for_json()
+            "values": self.values_for_json(),
         }
         if self.varname is not None:
-            obj['varname'] = self.varname
+            obj["varname"] = self.varname
 
         if self.consent_group is not None:
-            obj['consent_group'] = self.consent_group
+            obj["consent_group"] = self.consent_group
         return obj
-    
+
     def values_for_json(self):
         """Build out the values suitable for adding to json object"""
         values = []
@@ -171,11 +164,8 @@ class DdVariable:
         for code in self.enumerations:
             desc = self.enumerations[code]
 
-            if desc is None or desc == 'None' or desc.strip() == "":
+            if desc is None or desc == "None" or desc.strip() == "":
                 desc = code
-            values.append({
-                "code": code,
-                "description": desc
-            })
+            values.append({"code": code, "description": desc})
 
         return values
