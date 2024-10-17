@@ -26,57 +26,60 @@ import concurrent.futures
 from threading import Lock, current_thread, main_thread
 import datetime
 
-from rich import print 
+from rich import print
 from rich.progress import track
 
 from wstlr.bundle import Bundle, ParseBundle, RequestType
 
 from ncpi_fhir_client.ridcache import RIdCache
 
-load_lock = Lock()  # Lock used for basic load functionality like ID fetching 
-                    # and updating
+load_lock = Lock()  # Lock used for basic load functionality like ID fetching
+# and updating
 
-id_lock = Lock()    # Lock used during insertion into the observed IDs 
-                    # This is a different resource than the load_lock
+id_lock = Lock()  # Lock used during insertion into the observed IDs
+
+
+# This is a different resource than the load_lock
 class InvalidReference(Exception):
     def __init__(self, identifier, key):
-        self.system = identifier['system']
-        self.value = identifier['value']
+        self.system = identifier["system"]
+        self.value = identifier["value"]
         self.key = key
-        #pdb.set_trace()
+        # pdb.set_trace()
         super().__init__(self.message())
 
     def message(self):
         return f"Unseen reference to {self.key}=>{self.system}:{self.value}"
 
+
 def build_references(record, idcache, parent_key=None):
-    """Replace the identifier references with identifiers with actual IDs from 
+    """Replace the identifier references with identifiers with actual IDs from
     successful inserts. Please note the ID that will be matched on will be
     the first identifier, so please make sure the data is correctly defined."""
 
     # Bulk Export doesn't order things as nicely as it could
-    # so we may need to 
+    # so we may need to
     keys = list(record.keys())
     for key in keys:
         value = record[key]
         # Containers are backbone items, which will probably have an identifier that
         # doesn't work like a reference
-        if key == "identifier" and parent_key is not None and parent_key != 'container':
+        if key == "identifier" and parent_key is not None and parent_key != "container":
             if type(value) is not dict:
                 pdb.set_trace()
-            assert(type(value) is dict)
-            if 'value' not in value:
+            assert type(value) is dict
+            if "value" not in value:
                 pdb.set_trace()
-            idcomponents = idcache.get_id(value['system'], value['value'])
+            idcomponents = idcache.get_id(value["system"], value["value"])
             if idcomponents is not None:
                 resource_type, id = idcomponents
 
                 del record[key]
                 # records_referenced[key] = f"{resource_type}/{id}"
-                record['reference'] = f"{resource_type}/{id}"
+                record["reference"] = f"{resource_type}/{id}"
             else:
-                #print(value)
-                #pdb.set_trace()
+                # print(value)
+                # pdb.set_trace()
                 raise InvalidReference(value, parent_key)
         else:
             if type(value) is list:
@@ -87,19 +90,29 @@ def build_references(record, idcache, parent_key=None):
             if type(value) is dict:
                 build_references(value, idcache, parent_key=key)
 
-    
 
 # This is the prefix that will be used to identify the resource if it
 # possibly exists already inside the target FHIR server. This MUST be
 # present in it's entirety at the start of an identifier's system string
 class ResourceLoader:
     # values less than 1 will mean validate all resources
-    # This should do nothing if records are actually being loaded and 
+    # This should do nothing if records are actually being loaded and
     # not validated
     _max_validations_per_resource = -1
 
     _resource_buffer = []
-    def __init__(self, identifier_prefix, fhir_client, study_id, resource_list=None, module_list=None, idcache=None, threaded=False, thread_count=10):
+
+    def __init__(
+        self,
+        identifier_prefix,
+        fhir_client,
+        study_id,
+        resource_list=None,
+        module_list=None,
+        idcache=None,
+        threaded=False,
+        thread_count=10,
+    ):
         self.identifier_prefix = identifier_prefix
         self.identifier_rx = re.compile(identifier_prefix)
         self.client = fhir_client
@@ -140,34 +153,36 @@ class ResourceLoader:
 
         self.records_loaded = 0
         if threaded:
-            self.thread_executor = concurrent.futures.ThreadPoolExecutor(max_workers=thread_count)
+            self.thread_executor = concurrent.futures.ThreadPoolExecutor(
+                max_workers=thread_count
+            )
 
     def get_identifier(self, resource):
-        if 'identifier' in resource:
-            identifiers = deepcopy(resource['identifier'])
+        if "identifier" in resource:
+            identifiers = deepcopy(resource["identifier"])
 
             if type(identifiers) is not list:
                 identifiers = [identifiers]
 
-            #pdb.set_trace()
+            # pdb.set_trace()
             official = None
             for identifier in identifiers:
                 # For situations where the system doesn't exactly match our
                 # identifier-prefix (such as common data-dictionary terms)
-                # we'll use the official one. 
-                if identifier.get('use') == "official":
+                # we'll use the official one.
+                if identifier.get("use") == "official":
                     official = identifier
 
-                if 'system' in identifier:
+                if "system" in identifier:
                     with load_lock:
-                        id_match = self.identifier_rx.match(identifier['system'])
-                    
+                        id_match = self.identifier_rx.match(identifier["system"])
+
                     if id_match:
-                        if 'value' not in identifier:
+                        if "value" not in identifier:
                             pdb.set_trace()
-                        return (identifier['system'], identifier['value'])
+                        return (identifier["system"], identifier["value"])
             if official is not None:
-                return (official['system'], official['value'])
+                return (official["system"], official["value"])
         return (None, None)
 
     def launch_threads(self, msg=None):
@@ -178,17 +193,19 @@ class ResourceLoader:
         if self.thread_executor is not None:
             start_time = datetime.datetime.now()
             self.records_loaded += len(self.load_queue)
-            #if msg is None:
+            # if msg is None:
             #    msg = f"Launching threads ({len(self.load_queue)} | {self.records_loaded})"
-            #print(f"Launching threads ({len(self.load_queue)} | {self.records_loaded})")
+            # print(f"Launching threads ({len(self.load_queue)} | {self.records_loaded})")
 
             if msg is not None:
-                for entry in track(concurrent.futures.as_completed(self.load_queue), msg):
+                for entry in track(
+                    concurrent.futures.as_completed(self.load_queue), msg
+                ):
                     entry.result()
             else:
                 for entry in concurrent.futures.as_completed(self.load_queue):
                     entry.result()
-            #print(f"Thread queue ({len(self.load_queue)}) completed in {(datetime.datetime.now() - start_time).seconds}s. {len(self.delayed_loading)} remain unloaded.")
+            # print(f"Thread queue ({len(self.load_queue)}) completed in {(datetime.datetime.now() - start_time).seconds}s. {len(self.delayed_loading)} remain unloaded.")
             self.load_queue = []
 
     def save_fails(self, filename):
@@ -196,40 +213,33 @@ class ResourceLoader:
         savefile = Path(filename)
 
         if savefile.exists():
-            with savefile.open('rt') as f:
+            with savefile.open("rt") as f:
                 data = json.load(f)
-        
+
         if self.study_id not in data:
             data[self.study_id] = {
-                self.client.target_service_url: {
-                    "bad_references": []
-                }
+                self.client.target_service_url: {"bad_references": []}
             }
-        
+
         if self.client.target_service_url not in data[self.study_id]:
-            data[self.study_id][self.client.target_service_url] = {
-                "bad_references": []
-            }
-        
+            data[self.study_id][self.client.target_service_url] = {"bad_references": []}
+
         problems = []
         for group_name, resource in self.delayed_loading:
             try:
                 build_references(resource, self.idcache)
             except InvalidReference as e:
-                problems.append({
-                    "error": e.message(),
-                    "resource": resource
-                })
+                problems.append({"error": e.message(), "resource": resource})
 
-        data[self.study_id][self.client.target_service_url]['bad_references'] = problems
+        data[self.study_id][self.client.target_service_url]["bad_references"] = problems
 
-        with savefile.open('wt') as f:
+        with savefile.open("wt") as f:
             json.dump(data, f, indent=2)
         print(f"{len(self.delayed_loading)} unloaded resources written to {filename}")
 
     def save_study_ids(self, filename):
         self.studyids.dump_to_file(filename)
-    
+
     def cleanup_threads(self):
         if self.thread_executor is not None:
             self.launch_threads(msg="Cleanup")
@@ -238,22 +248,29 @@ class ResourceLoader:
 
     def add_job_to_queue(self, group_name, resource):
         # Run immediately if there is no executor or if it's one of the ontontology types
-        if resource['resourceType'] not in ['CodeSystem', 'ValueSet'] and self.thread_executor is not None:
-            self.load_queue.append(self.thread_executor.submit(self.load_resource, group_name, resource))
+        if (
+            resource["resourceType"] not in ["CodeSystem", "ValueSet"]
+            and self.thread_executor is not None
+        ):
+            self.load_queue.append(
+                self.thread_executor.submit(self.load_resource, group_name, resource)
+            )
 
             if self.max_queue_size <= len(self.load_queue):
                 self.launch_threads()
         else:
             self.load_resource(group_name, resource)
 
-
     def consume_load(self, group_name, resource):
         if len(self.module_list) == 0 or group_name in self.module_list:
-            if len(self.resource_list) == 0 or resource['resourceType'] in self.resource_list:
+            if (
+                len(self.resource_list) == 0
+                or resource["resourceType"] in self.resource_list
+            ):
                 try:
 
                     with load_lock:
-                        if 'resourceType' not in resource:
+                        if "resourceType" not in resource:
                             print(pformat(resource))
 
                         build_references(resource, self.idcache, parent_key=None)
@@ -267,22 +284,24 @@ class ResourceLoader:
         if resources is None:
             resources = self.delayed_loading
 
-        delayed_again = []  
+        delayed_again = []
 
-        for group_name, resource in track(resources, f"Retrying {len(resources)} resources:"):
+        for group_name, resource in track(
+            resources, f"Retrying {len(resources)} resources:"
+        ):
             try:
                 with load_lock:
-                    if resource['resourceType'] == 'ObservationDefinition':
-                        #pdb.set_trace()
+                    if resource["resourceType"] == "ObservationDefinition":
+                        # pdb.set_trace()
                         pass
                     build_references(resource, self.idcache, parent_key=None)
                 self.add_job_to_queue(group_name, resource)
 
             except InvalidReference as e:
                 with load_lock:
-                    #print(e.message())
+                    # print(e.message())
                     delayed_again.append((group_name, resource))
-                
+
         with load_lock:
             self.delayed_loading = delayed_again
 
@@ -290,23 +309,26 @@ class ResourceLoader:
         """Do we even care to use async with validate? I'm skipping it for now"""
         result = self.load_resource(group_name, resource, validate_only=True)
 
-        if 'response' in result:
-            response = result['response']
+        if "response" in result:
+            response = result["response"]
 
-            if response['resourceType'] != "OperationOutcome":
+            if "resourceType" not in response:
+                print(result)
+                print(f"There is no 'resourceType' in the record above")
+                pdb.set_trace()
+            if response["resourceType"] != "OperationOutcome":
                 print(result)
                 print("The response resourceType should have been 'OperationOutcome")
                 sys.exit(1)
-            
+
             do_exit = False
-            for issue in response['issue']:
-                if issue['severity'] == 'error' or halt_on_warn:
+            for issue in response["issue"]:
+                if issue["severity"] == "error" or halt_on_warn:
                     print(issue)
-                    do_exit=True
-            
+                    do_exit = True
+
             if do_exit:
                 sys.exit(1)
-
 
     def load_resource(self, group_name, resource, validate_only=False):
         cache_id = False
@@ -314,11 +336,11 @@ class ResourceLoader:
         system = None
         uniqid = None
 
-        if 'resourceType' not in resource:
+        if "resourceType" not in resource:
             print(pformat(resource))
             print("Ooops! There is a problem with this record!. No resourceType!")
             sys.exit(1)
-        resource_type = resource['resourceType']
+        resource_type = resource["resourceType"]
 
         resource_index = 0
         with load_lock:
@@ -328,23 +350,28 @@ class ResourceLoader:
         if current_thread() is not main_thread():
             current_thread().name = f"{resource_type}|{resource_index}"
 
-        if validate_only and ResourceLoader._max_validations_per_resource > 0 and  self.resources_observed[resource_type] > ResourceLoader._max_validations_per_resource:
+        if (
+            validate_only
+            and ResourceLoader._max_validations_per_resource > 0
+            and self.resources_observed[resource_type]
+            > ResourceLoader._max_validations_per_resource
+        ):
             # For now, we'll just return a successful status code
-            return {"status_code" : 200 }
+            return {"status_code": 200}
         # We'll handle CodeSystems and ValueSets differently
-        if resource_type in ['CodeSystem', 'ValueSet', 'ConceptMap']:
+        if resource_type in ["CodeSystem", "ValueSet", "ConceptMap"]:
             result = self.client.load(resource_type, resource, validate_only)
-            if result['status_code'] < 300:
-                #print(result)
+            if result["status_code"] < 300:
+                # print(result)
 
                 # Validation responses without any warnings or errors have no
                 # response entry
-                if 'response' in result:
-                    (system, uniqid) =  self.get_identifier(result['response'])
+                if "response" in result:
+                    (system, uniqid) = self.get_identifier(result["response"])
                     if system is not None:
                         cache_id = True
         else:
-            identifier_type='identifier'
+            identifier_type = "identifier"
             cache_id = self.idcache is not None
             try:
                 (system, uniqid) = self.get_identifier(resource)
@@ -352,19 +379,19 @@ class ResourceLoader:
                 print("Something went wrong getting an identifier for: ")
                 print(resource)
             resource_identifier = uniqid
-            if self.idcache and 'id' not in resource:
-                
+            if self.idcache and "id" not in resource:
+
                 id = self.idcache.get_id(system, uniqid)
 
                 if id:
-                    resource['id'] = id[1]
+                    resource["id"] = id[1]
                     cache_id = False
                 else:
                     cache_id = True
 
                 identifier_type = "identifier"
-                if resource_type in ['ObservationDefinition']:
-                    #resource_identifier = f"{system}|{uniqid}"
+                if resource_type in ["ObservationDefinition"]:
+                    # resource_identifier = f"{system}|{uniqid}"
                     resource_identifier = None
                 else:
                     resource_identifier = uniqid
@@ -384,61 +411,73 @@ class ResourceLoader:
                     """
 
             # If we couldn't find an id in the cache, we will pass the
-            # identifier parameter in so that it will attempt to "get" 
+            # identifier parameter in so that it will attempt to "get"
             # a match and reuse the ID for a valid PUT overwrite
             retry_count = FhirClient.retry_post_count
             while retry_count > 0:
                 retry_count -= 1
                 try:
-                    #pdb.set_trace()
-                    result = self.client.post(resource_type, 
-                                            resource, 
-                                            identifier=resource_identifier,
-                                            identifier_system=system,
-                                            identifier_type=identifier_type,
-                                            validate_only=validate_only,
-                                            retry_count=1)
+                    # pdb.set_trace()
+                    result = self.client.post(
+                        resource_type,
+                        resource,
+                        identifier=resource_identifier,
+                        identifier_system=system,
+                        identifier_type=identifier_type,
+                        validate_only=validate_only,
+                        retry_count=1,
+                    )
                 except Exception as e:
                     print(f"Exception occured when loading {resource_type}: {e}")
                     print(resource)
-                    #print(result)
+                    # print(result)
                     pdb.set_trace()
                     print(f"{system}|{resource_identifier} {identifier_type}")
-                if result['status_code'] < 300:
+                if result["status_code"] < 300:
                     retry_count = 0
 
-                elif result['status_code'] == 429:
-                    print(f"\t492 : {resource_type}:{resource_identifier} Too many requests")
+                elif result["status_code"] == 429:
+                    print(
+                        f"\t492 : {resource_type}:{resource_identifier} Too many requests"
+                    )
                     if retry_count == 0:
-                        print("\tThe server is struggling for some reason and has refused our request too many times. Exiting.")
+                        print(
+                            "\tThe server is struggling for some reason and has refused our request too many times. Exiting."
+                        )
                         pdb.set_trace()
                     sleep(35)
                 else:
                     print(f"\t{result['status_code']} : {result['request_url']}")
                     sleep(5)
-        if result['status_code'] < 300:
+        if result["status_code"] < 300:
             self.successful_loads[group_name][resource_type] += 1
             self.resource_summary[resource_type] += 1
-            #pdb.set_trace()
+            # pdb.set_trace()
 
-            if 'id' in result['response']:
-                self.studyids.add_id(resource_type, result['response']['id'])
+            if "id" in result["response"]:
+                self.studyids.add_id(resource_type, result["response"]["id"])
 
                 if cache_id:
                     if system is None:
                         pdb.set_trace()
-                    self.idcache.store_id(resource_type, system, uniqid, result['response']['id'], no_db=True)
+                    self.idcache.store_id(
+                        resource_type,
+                        system,
+                        uniqid,
+                        result["response"]["id"],
+                        no_db=True,
+                    )
 
         else:
             skipped_warnings = 0
             skipped_errors = 0
             error_count = 0
             last_error = None
-            if 'issue' not in result['response']:
-                print(pformat(result['response']))
-                #pdb.set_trace()
-            for issue in result['response']['issue']:
-                if issue['severity'] == 'error':
+            if "issue" not in result["response"]:
+                print(pformat(result["response"]))
+                # pdb.set_trace()
+            for issue in result["response"]["issue"]:
+                if issue["severity"] == "error":
                     if error_count < 5:
                         print(pformat(resource))
                         print(pformat(issue, width=160, compact=True))
@@ -447,7 +486,7 @@ class ResourceLoader:
                         last_error = issue
                         skipped_errors += 1
                 else:
-                    skipped_warnings += 1 
+                    skipped_warnings += 1
 
             if last_error is not None:
                 with load_lock:
@@ -456,21 +495,26 @@ class ResourceLoader:
             with load_lock:
                 print(f"Skipped {skipped_warnings} warnings and {skipped_errors}.")
 
-                #pdb.set_trace()
+                # pdb.set_trace()
             sys.exit(1)
         return result
 
-
     def print_summary(self):
         print(f"Load Summary {self.study_id}\n")
-        print("Module Name                      Resource Type            #         % of Total")
-        print("-------------------------------  ------------------------ --------- ----------")
+        print(
+            "Module Name                      Resource Type            #         % of Total"
+        )
+        print(
+            "-------------------------------  ------------------------ --------- ----------"
+        )
         for modulename in sorted(self.successful_loads.keys()):
             for resourcetype in sorted(self.successful_loads[modulename].keys()):
                 observed = self.successful_loads[modulename][resourcetype]
                 total = self.resource_summary[resourcetype]
-                perc = f"{(100.0 * observed)/total:4.2f}" 
-                print(f"{modulename:<32} {resourcetype:<24} {self.successful_loads[modulename][resourcetype]:<9} {perc:>7}")
+                perc = f"{(100.0 * observed)/total:4.2f}"
+                print(
+                    f"{modulename:<32} {resourcetype:<24} {self.successful_loads[modulename][resourcetype]:<9} {perc:>7}"
+                )
 
 
 def exec():
@@ -480,11 +524,11 @@ def exec():
     # Just capture the available environments to let the user
     # make the selection at runtime
     env_options = sorted(host_config.keys())
-    
+
     parser = ArgumentParser(
         description="Load whistle output file into selected FHIR server."
     )
-    #pdb.set_trace()
+    # pdb.set_trace()
     parser.add_argument(
         "--host",
         choices=env_options,
@@ -493,108 +537,118 @@ def exec():
     parser.add_argument(
         "-v",
         "--validate-only",
-        action='store_true',
-        help="Indicate that submissions to the FHIR server are just validation calls and not for proper loading. Anything that fails validation result in a termination."
+        action="store_true",
+        help="Indicate that submissions to the FHIR server are just validation calls and not for proper loading. Anything that fails validation result in a termination.",
     )
     parser.add_argument(
         "-mv",
         "--max-validations",
         type=int,
         default=1000,
-        help="If validating instead of loading, this determines how many of a given resource type will be validated. Values less than one means no limit to the number of resources validated."
+        help="If validating instead of loading, this determines how many of a given resource type will be validated. Values less than one means no limit to the number of resources validated.",
     )
     parser.add_argument(
         "-m",
         "--module",
         type=str,
-        action='append',
-        help="When loading resources into FHIR, this indicates the name of a module to be loaded. A module is a 'root' level entry in the whistle output object. --module may be specified multiple times to load multiple modules."
+        action="append",
+        help="When loading resources into FHIR, this indicates the name of a module to be loaded. A module is a 'root' level entry in the whistle output object. --module may be specified multiple times to load multiple modules.",
     )
     parser.add_argument(
-        "-r", 
+        "-r",
         "--resource",
         type=str,
-        action='append',
-        help="When loading resources into FHIR, this indicates a resourceType that will be loaded. --resource may be specified more than once."
+        action="append",
+        help="When loading resources into FHIR, this indicates a resourceType that will be loaded. --resource may be specified more than once.",
     )
     parser.add_argument(
         "-t",
-        "--threaded", 
-        action='store_true',
-        help="When true, loads will be submitted in parallel."
+        "--threaded",
+        action="store_true",
+        help="When true, loads will be submitted in parallel.",
     )
     parser.add_argument(
         "-lb",
         "--load-buffer-size",
         default=5000,
         type=int,
-        help="Number of records to buffer before launching threaded loads. Only matters when running with async=true"
-    )    
-    parser.add_argument(
-        "--require-official",
-        type=bool,
-        default=True
-    )    
+        help="Number of records to buffer before launching threaded loads. Only matters when running with async=true",
+    )
+    parser.add_argument("--require-official", type=bool, default=True)
     parser.add_argument(
         "-s",
         "--study-id",
         required=True,
         type=str,
-        help="Study ID which will be found in the meta.tag (bad things will happen if this is wrong)"
+        help="Study ID which will be found in the meta.tag (bad things will happen if this is wrong)",
     )
     parser.add_argument(
         "--fhir-id-patterns",
         type=str,
         default=None,
-        help="I need some time to figure what this did..."
+        help="I need some time to figure what this did...",
     )
     parser.add_argument(
         "--identifier-prefix",
         type=str,
         required=True,
-        help="This is used throughout whistle. It's probably necessary for bundle generation, which shouldn't matter here, but go ahead and provide it for now..."
+        help="This is used throughout whistle. It's probably necessary for bundle generation, which shouldn't matter here, but go ahead and provide it for now...",
     )
     parser.add_argument(
         "file",
         required=True,
-        type=FileType('rt'),
+        type=FileType("rt"),
         help="JSON output from Whistle to be inspected.",
     )
     args = parser.parse_args(sys.argv[1:])
 
     if args.max_validations > 0:
         ResourceLoader._max_validations_per_resource = args.max_validations
-    cache_remote_ids = RIdCache(study_id=args.study_id, valid_patterns=args.fhir_id_patterns)
+    cache_remote_ids = RIdCache(
+        study_id=args.study_id, valid_patterns=args.fhir_id_patterns
+    )
     fhir_client = FhirClient(host_config[args.host], idcache=cache_remote_ids)
 
-    #cache = IdCache(config['study_id'], fhir_client.target_service_url)
-    
-    loader = ResourceLoader(args.identifier_prefix, fhir_client, resource_list=args.resource, module_list=args.module, study_id=args.study_id, idcache=cache_remote_ids, threaded=args.threaded)
+    # cache = IdCache(config['study_id'], fhir_client.target_service_url)
+
+    loader = ResourceLoader(
+        args.identifier_prefix,
+        fhir_client,
+        resource_list=args.resource,
+        module_list=args.module,
+        study_id=args.study_id,
+        idcache=cache_remote_ids,
+        threaded=args.threaded,
+    )
 
     if args.threaded:
         print("Threading enabled")
         loader.max_queue_size = args.load_buffer_size
     resource_consumers = []
 
-    # if we are loading, we'll grab the loader so that we can 
+    # if we are loading, we'll grab the loader so that we can
     if args.validate_only:
         resource_consumers.append(loader.consume_validate)
     else:
         resource_consumers.append(loader.consume_load)
 
-    with open(args.file, 'rt') as  f:
+    with open(args.file, "rt") as f:
         ParseBundle(f, resource_consumers)
-    
+
     max_final_attempts = 10
     if not args.validate_only:
         while len(loader.delayed_loading) > 0 and max_final_attempts > 0:
-            # Make sure we clear out the queue in case there are some 
+            # Make sure we clear out the queue in case there are some
             # things there that these reloads depend on
-            #pdb.set_trace()
-            loader.launch_threads(msg=f"Attempting to load {len(loader.delayed_loading)} left-overs. ")
+            # pdb.set_trace()
+            loader.launch_threads(
+                msg=f"Attempting to load {len(loader.delayed_loading)} left-overs. "
+            )
 
-            #print(f"Attempting to load {len(loader.delayed_loading)} left-overs. ")
-            loader.retry_loading(msg=f"Attempting to load {len(loader.delayed_loading)} left-overs. ")
+            # print(f"Attempting to load {len(loader.delayed_loading)} left-overs. ")
+            loader.retry_loading(
+                msg=f"Attempting to load {len(loader.delayed_loading)} left-overs. "
+            )
             max_final_attempts -= 1
 
     # Launch anything that was lingering in the queue
@@ -604,12 +658,3 @@ def exec():
     output_directory = Path(args.file.name).parent
     loader.save_fails(output_directory / f"invalid-references.json")
     loader.save_study_ids(output_directory / f"study-ids.json")
-
-
-
-        
-
-
-
-
-

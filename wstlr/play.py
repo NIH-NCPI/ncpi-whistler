@@ -24,10 +24,13 @@ from wstlr.load import ResourceLoader
 from wstlr.idcache import IdCache
 from wstlr.bundle import Bundle, ParseBundle, RequestType
 
+from rich import print
 from rich.progress import track
 
 from ncpi_fhir_client.ridcache import RIdCache
 from wstlr.config import Configuration
+
+from time import sleep
 
 
 import os
@@ -265,10 +268,21 @@ def exec():
 
     host = args.host
 
+    should_sleep = False
     for config_file in args.config:
         cfg = Configuration(config_file)
         require_official = cfg.require_official
 
+        print("--------------------------------------------------------------")
+        print(f"*  Study: [blue]{cfg.study_id}[/blue]")
+        print("--------------------------------------------------------------")
+
+        if should_sleep:
+            print(
+                "*\n*[yellow]  sleeping for a bit to give terminologies time to be recognized[/yellow]"
+            )
+            sleep(60)
+        should_sleep = True
         resource_list = args.resource
         if resource_list is None:
             resource_list = cfg.resource_list
@@ -368,7 +382,7 @@ def exec():
                         resource_summary.summary,
                     ],
                 )
-            resource_summary.print_summary()
+            resource_summary.print_summary(cfg.study_id)
         else:
             result_file = str(whistle_output)
             print(f"Skipping whistle since none of the input has changed")
