@@ -14,9 +14,10 @@ import sys
 import pdb
 
 
-from rich import print 
+from rich import print
 
 __version__ = "0.1.0"
+
 
 def test_exclusion(filename, exclusion_list):
     if exclusion_list is not None:
@@ -25,10 +26,17 @@ def test_exclusion(filename, exclusion_list):
                 return True
     return False
 
-def delete_resource(fn ,fhir_client, data, deleted_items):
-    # Query by URL, since we may not be using the same ID as was provided 
+
+def delete_resource(fn, fhir_client, data, deleted_items):
+    # Query by URL, since we may not be using the same ID as was provided
     # previously
-    response = fhir_client.delete_by_query(data['resourceType'], qry=f"url={data['url']}")
+
+    if "url" in data:
+        response = fhir_client.delete_by_query(
+            data["resourceType"], qry=f"url={data['url']}"
+        )
+    else:
+        response = fhir_client.delete_by_record_id(data["resourceType"], data["id"])
 
     if len(response) > 0:
         if type(response) is dict:
@@ -45,28 +53,35 @@ def delete_resource(fn ,fhir_client, data, deleted_items):
                 pdb.set_trace()
     return response
 
+
 def load_resource(fn, fhir_client, data, force_overwrite):
-    response = fhir_client.load(data['resourceType'], data, skip_insert_if_present=not force_overwrite)
+    if "url" in data:
+        response = fhir_client.load(
+            data["resourceType"], data, skip_insert_if_present=not force_overwrite
+        )
+    else:
+        response = fhir_client.post(data["resourceType"], data)
     if type(response) is dict:
         response = [response]
-    
+
     for resp in response:
-        if resp['status_code'] < 300:
+        if resp["status_code"] < 300:
             print(f"Loading {fn} - {resp['status_code']}")
         else:
             print(f"An error occurred loading {fn}")
-            print(resp['status_code'])
-            if 'issue' in resp:
-                print(resp['issue'])
+            print(resp["status_code"])
+            if "issue" in resp:
+                print(resp["issue"])
             else:
                 print(resp)
             pdb.set_trace()
     return response
 
+
 def exec():
     host_config = get_host_config()
     env_options = sorted(host_config.keys())
-    
+
     parser = ArgumentParser(
         description="Load whistle output file into selected FHIR server."
     )
@@ -76,49 +91,49 @@ def exec():
         help=f"Remote configuration to be used to access the FHIR server. If no environment is provided, the system will stop after generating the whistle output (no validation, no loading)",
     )
     parser.add_argument(
-        "-r", 
+        "-r",
         "--resource",
         type=str,
-        action='append',
-        help="When loading resources into FHIR, this indicates a resourceType that will be loaded. --resource may be specified more than once."
+        action="append",
+        help="When loading resources into FHIR, this indicates a resourceType that will be loaded. --resource may be specified more than once.",
     )
     parser.add_argument(
         "-x",
         "--exclude",
         type=str,
-        action='append',
+        action="append",
         help="""When loading resources into FHIR, any resources matching """
-             """any exclude entry will be skipped. Exclusions match case. """
+        """any exclude entry will be skipped. Exclusions match case. """,
     )
     parser.add_argument(
-        "--force-overwrite", 
-        action='store_true',
-        help="Replace resources that are already loaded in the target FHIR server."
+        "--force-overwrite",
+        action="store_true",
+        help="Replace resources that are already loaded in the target FHIR server.",
     )
     parser.add_argument(
         "-c",
         "--content",
-        type = FileType('rt'),
-        help="YAML File with details about the IG to load into FHIR"
+        type=FileType("rt"),
+        help="YAML File with details about the IG to load into FHIR",
     )
     parser.add_argument(
         "--generate-default",
-        action='store_true',
-        help="When used, a default configuration will be dumped to std:out"
+        action="store_true",
+        help="When used, a default configuration will be dumped to std:out",
     )
     parser.add_argument(
         "--sleep-time",
-        type = int,
+        type=int,
         default=5,
-        help = """Number of seconds to sleep between deleting pre-existing """
-             """resources and subsequent loading. If you have very large """
-             """vocabularies as part of your IG(s), then it may be helpful """
-             """to increase this value. """
+        help="""Number of seconds to sleep between deleting pre-existing """
+        """resources and subsequent loading. If you have very large """
+        """vocabularies as part of your IG(s), then it may be helpful """
+        """to increase this value. """,
     )
     parser.add_argument(
         "--version",
-        action='store_true',
-        help="Return the version number associated with the application. "
+        action="store_true",
+        help="Return the version number associated with the application. ",
     )
     args = parser.parse_args(sys.argv[1:])
 
@@ -127,13 +142,22 @@ def exec():
         sys.exit(0)
 
     if args.generate_default:
-        print((Path(__file__).resolve().parent / "templates" / "ncpi.yaml").open('rt').read() + "\n")
+        print(
+            (Path(__file__).resolve().parent / "templates" / "ncpi.yaml")
+            .open("rt")
+            .read()
+            + "\n"
+        )
         sys.exit(0)
 
     if args.content is None:
-        response = input("No content file provided, do you want to load the default IG site? (Y/n) ")
-        if response == "" or response.lower()[0] == 'y':
-            args.content = open(str(Path(__file__).resolve().parent / "templates" / "ncpi.yaml"), 'rt')
+        response = input(
+            "No content file provided, do you want to load the default IG site? (Y/n) "
+        )
+        if response == "" or response.lower()[0] == "y":
+            args.content = open(
+                str(Path(__file__).resolve().parent / "templates" / "ncpi.yaml"), "rt"
+            )
         else:
             sys.stderr.write("No site configuration provided. Unable to continue")
             sys.exit(1)
@@ -143,38 +167,56 @@ def exec():
     print(f"Destination host: {fhir_client.target_service_url}")
 
     for key in content:
+
         resources = {}
 
-        if content[key]['source_type'] == "IG":
+        if content[key]["source_type"] == "IG":
             resources = ig_source.load_resources(content[key])
-        elif content[key]['source_type'] == "FILES":
+        elif content[key]["source_type"] == "FILES":
+            # pdb.set_trace()
             resources = file_source.load_resources(content[key])
 
+            resource_types = set()
+            for resource in resources:
+                # pdb.set_trace()
+                resource_types.add(resources[resource]["resourceType"])
+
+            # replace the filenames with the resource types
+            content[key]["resources"] = list(resource_types)
+
+        # Capture the resourceTypes found in the contents we just loaded and
+        # cache them in case the user didn't restrict resources to a subset
+
+        # pdb.set_trace()
         resource_list = args.resource
         if resource_list is None:
-            resource_list = content[key]['resources']
+            resource_list = content[key]["resources"]
             if type(resource_list) is str:
                 resource_list = [x.strip() for x in resource_list.split()]
 
         exclusion_list = args.exclude
         if exclusion_list is None:
-            exclusion_list = content[key].get('exclude-wildcards')
+            exclusion_list = content[key].get("exclude-wildcards")
             if type(exclusion_list) is str:
                 exclusion_list = [x.strip() for x in exclusion_list.split()]
 
         excluded_list = []
         # First, let's try deleting any that may already exist
         deleted_items = []
-        #pdb.set_trace()
+        # pdb.set_trace()
         if args.force_overwrite:
+            print("Forcing Overwrite!")
             ig = None
-            for fn,data in resources.items():
-                if data['resourceType'] in resource_list and not test_exclusion(fn, args.exclude):
-                    if data['resourceType'] == "ImplementationGuide":
+            for fn, data in resources.items():
+                if data["resourceType"] in resource_list and not test_exclusion(
+                    fn, args.exclude
+                ):
+                    if data["resourceType"] == "ImplementationGuide":
                         ig = data
                     else:
+                        print(data)
+                        print("Deleting the above resource")
                         response = delete_resource(fn, fhir_client, data, deleted_items)
-
 
             if ig is not None:
                 response = delete_resource(fn, fhir_client, data, deleted_items)
@@ -187,28 +229,35 @@ def exec():
         # Iterate over the list and load them one at a time
         ig = None
         print(resource_list)
-        for fn,data in resources.items():
-            #pdb.set_trace()
-            if (data['resourceType'] in resource_list or fn in resource_list) and not test_exclusion(fn, exclusion_list):
-                if data['resourceType'] == "ImplementationGuide":
+        for fn, data in resources.items():
+            # pdb.set_trace()
+            if (
+                data["resourceType"] in resource_list or fn in resource_list
+            ) and not test_exclusion(fn, exclusion_list):
+                if data["resourceType"] == "ImplementationGuide":
                     print(f"\n\n--> IG: {fn}")
                     ig = data
                 else:
-                    response = load_resource(fn, fhir_client, data, args.force_overwrite)
+                    response = load_resource(
+                        fn, fhir_client, data, args.force_overwrite
+                    )
+                    print(f"{fn} -- {response.keys()}")
+                    pdb.set_trace()
             else:
                 print(f"\nSkipping {fn}")
                 excluded_list.append(fn)
-            
+
         if ig is not None:
-            pdb.set_trace()
+            # pdb.set_trace()
             response = load_resource(fn, fhir_client, ig, args.force_overwrite)
             print(response)
-       
 
         print("Files Loaded: " + ", ".join(sorted(resources.keys())))
         print("Files Excluded: " + ", ".join(sorted(excluded_list)))
 
-    print("""   
-          \nPlease note that for some FHIR Servers, we've noticed that """ 
-          """loading large vocabularies can take quite some time before the """
-          """server is ready to use them and any changes made afterward. """)
+    print(
+        """   
+          \nPlease note that for some FHIR Servers, we've noticed that """
+        """loading large vocabularies can take quite some time before the """
+        """server is ready to use them and any changes made afterward. """
+    )
