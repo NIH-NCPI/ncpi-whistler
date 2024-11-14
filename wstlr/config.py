@@ -11,6 +11,8 @@ from wstlr.dd.csv_parser import CsvParser
 from wstlr.dd.study import DdStudy
 from wstlr.dd.table import DdTable
 from wstlr import fix_fieldname
+
+from pathlib import Path
 import pdb
 
 
@@ -116,6 +118,10 @@ class Configuration:
     @property
     def id_colname(self):
         return self.from_config("id_colname")
+
+    @property
+    def projections(self):
+        return self.from_config("projections", required=True)
 
     @property
     def whistle_src(self):
