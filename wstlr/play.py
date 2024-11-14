@@ -242,6 +242,13 @@ def exec():
         help="Number of records to buffer before launching threaded loads. Only matters when running with async=true",
     )
     parser.add_argument(
+        "-pr",
+        "--projection",
+        choices=['study', 'dataset', 'harmonized'],
+        default='study',
+        help="Which projection library is to be used"
+        )
+    parser.add_argument(
         "-m",
         "--module",
         type=str,
@@ -340,7 +347,9 @@ def exec():
             with whistle_input.open(mode="wt") as f:
                 f.write(json.dumps(dataset, indent=2))
 
-        output_directory = Path(args.output)
+        # We'll move the output into the projection type directory
+        # since whistle doesn't allow you to specify the filename
+        output_directory = Path(args.output) / args.projection
         output_directory.mkdir(parents=True, exist_ok=True)
         whistle_output = output_directory / f"{cfg.output_filename}.output.json"
 
@@ -359,11 +368,15 @@ def exec():
                 whistle_path = response.stdout.decode().strip()
                 print(f"Whistle Path: {whistle_path}")
 
+            # Switch to using modular projection libraries
+            prj_home=cfg.projections[args.projection]
+            projection_lib=f"{prj_home}/{args.projection_version}"
+            whistle_src=f"{prj_home}/{cfg.whistle_src}"
             result_file = run_whistle(
-                whistlefile=cfg.whistle_src,
+                whistlefile=whistle_src,
                 inputfile=str(whistle_input),
                 harmonydir=cfg.code_harmonization_dir,
-                projectorlib=cfg.projector_lib,
+                projectorlib=projection_lib,
                 outputdir=str(output_directory),
                 whistle_path=whistle_path,
             )
