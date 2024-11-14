@@ -97,7 +97,9 @@ def get_latest_date(filename, latest_observed_date):
     return latest_observed_date
 
 
-def check_latest_update(config, cm_timestamp=None):
+def check_latest_update(
+    config, projector_home, whistle_src, projection_lib, cm_timestamp=None
+):
     latest_update = get_latest_date(config.filename, None)
 
     # Work the harmony concept map into dependency check
@@ -113,8 +115,8 @@ def check_latest_update(config, cm_timestamp=None):
         for filename in table["filename"].split(","):
             latest_update = get_latest_date(filename, latest_update)
 
-    latest_update = get_latest_date(config.whistle_src, latest_update)
-    for wst in Path(config.projector_lib).glob("*.wstl"):
+    latest_update = get_latest_date(whistle_src, latest_update)
+    for wst in Path(projection_lib).glob("*.wstl"):
         latest_update = get_latest_date(wst, latest_update)
 
     return latest_update
@@ -244,10 +246,17 @@ def exec():
     parser.add_argument(
         "-pr",
         "--projection",
-        choices=['study', 'dataset', 'harmonized'],
-        default='study',
-        help="Which projection library is to be used"
-        )
+        choices=["study", "dataset", "harmonized"],
+        default="study",
+        help="Which projection library is to be used",
+    )
+    parser.add_argument(
+        "-pv",
+        "--projection-version",
+        type=str,
+        default="current",
+        help="Version of the projection to be used. Default is current.",
+    )
     parser.add_argument(
         "-m",
         "--module",
@@ -314,6 +323,10 @@ def exec():
         output_directory.mkdir(parents=True, exist_ok=True)
         whistle_input = output_directory / f"{cfg.output_filename}.json"
 
+        prj_home = cfg.projections[args.projection]
+        whistle_src = f"{prj_home}/{cfg.whistle_src}"
+        projection_lib = f"{prj_home}/{args.projection_version}"
+
         try:
             dataset = DataCsvToObject(cfg)
         except FileNotFoundError as e:
@@ -337,7 +350,9 @@ def exec():
                 )
                 harmony_files.add(dsconfig["code_harmonization"])
 
-        input_file_ts = check_latest_update(cfg, cm_timestamp)
+        input_file_ts = check_latest_update(
+            cfg, prj_home, whistle_src, projection_lib, cm_timestamp
+        )
 
         if (
             args.force
@@ -369,9 +384,7 @@ def exec():
                 print(f"Whistle Path: {whistle_path}")
 
             # Switch to using modular projection libraries
-            prj_home=cfg.projections[args.projection]
-            projection_lib=f"{prj_home}/{args.projection_version}"
-            whistle_src=f"{prj_home}/{cfg.whistle_src}"
+            print(f"Whistle source: {whistle_src}")
             result_file = run_whistle(
                 whistlefile=whistle_src,
                 inputfile=str(whistle_input),
