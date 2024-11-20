@@ -73,8 +73,8 @@ class Configuration:
     def from_config(self, key, default=None, required=False):
         die_if(
             required and key not in self.configuration,
-            "Required configuration parameter, '{key}' is missing from file, "
-            "'{self.filename}'.",
+            f"Required configuration parameter, '{key}' is missing from file, "
+            f"'{self.filename}'.",
         )
         return self.configuration.get(key, default)
 
@@ -106,6 +106,14 @@ class Configuration:
         if "dd_prefix" in self.configuration:
             return self.from_config("dd_prefix")
         return self.identifier_prefix
+
+    @property
+    def harmony_prefix(self):
+        return self.from_config("harmony_prefix", required=True)
+
+    @property
+    def code_harmonization(self):
+        return self.from_config("code_harmonization")
 
     @property
     def config(self):

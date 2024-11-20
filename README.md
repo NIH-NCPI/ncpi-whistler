@@ -1,3 +1,18 @@
+# NOVEMBER 2024 - Breaking Changes
+Please note that version 0.3.0 introduces breaking changes to the YAML configuration: 
+Projections are not modular and require entries for each of the following: study, dataset, harmonized. Inside, you can create a directory, current (the default choice for projection version), and move your projections into that directory. You can then create an entry for each of the modules that point to the same projection library: 
+
+Example: 
+```
+projections: 
+  study: projector
+  dataset: projector
+  harmonized: projector
+```
+
+You should move your entry point (typically _entry.wstl) into the projector directory (whistler will look to the version's parent directory for the file)
+
+
 # NCPI Whistler
 NCPI Whistler provides a complete pipeline to transform research data tables into FHIR resources loaded into a FHIR Server using a combination of standard Python scripting, [Whistle](https://github.com/GoogleCloudPlatform/healthcare-data-harmonization) and the standard FHIR Rest API for loading data into the target FHIR server. 
 

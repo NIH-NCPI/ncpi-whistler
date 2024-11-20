@@ -333,18 +333,31 @@ def exec():
             sys.stderr.write(f"ERROR: Unable to find file, {e.filename}.\n")
             sys.exit(1)
 
-        harmony_files = set()
         cm_timestamp = None
+        harmony_files = set()
+
+        if cfg.code_harmonization:
+            cm_timestamp = BuildConceptMap(
+                cfg.code_harmonization,
+                curies=cfg.curies,
+                name_prefix=cfg.harmony_prefix,
+                outname=f"{cfg.code_harmonization_dir}/{cfg.harmony_prefix}.json",
+                codesystems=dataset["code-systems"],
+            )
+
+            harmony_files = set(cfg.code_harmonization)
+
         # Build ConceptMaps if provided
         for dsname, dsconfig in cfg.dataset.items():
+            # We do want to rebuild each harmony file once per config, but
+            # no need to do it more than that.
             if (
                 "code_harmonization" in dsconfig
                 and dsconfig["code_harmonization"] not in harmony_files
             ):
-                # We do want to rebuild each harmony file once per config, but
-                # no need to do it more than that
+                # For old style harmony entries, we assume only one at a time
                 cm_timestamp = BuildConceptMap(
-                    dsconfig["code_harmonization"],
+                    [dsconfig["code_harmonization"]],
                     curies=cfg.curies,
                     codesystems=dataset["code-systems"],
                 )
