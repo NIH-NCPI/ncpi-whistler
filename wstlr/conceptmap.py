@@ -394,6 +394,9 @@ def BuildConceptMap(
 
     observed_mappings = set()
 
+    # Local system => [dictionary with all columns for easy construction of the group/element]
+    mappings = defaultdict(lambda: defaultdict(list))
+
     # If we get more than one file at a time, we'll consider them parts of the same
     # harmony file
     if True:
@@ -402,9 +405,6 @@ def BuildConceptMap(
                 reader = DictReader(f, delimiter=",", quotechar='"')
                 # Make sure the field names are uniform. Just ignore case
                 reader.fieldnames = [x.lower() for x in reader.fieldnames]
-
-                # Local system => [dictionary with all columns for easy construction of the group/element]
-                mappings = defaultdict(lambda: defaultdict(list))
 
                 rowcount = 0
                 for row in reader:
