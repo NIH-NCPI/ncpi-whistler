@@ -542,6 +542,7 @@ def BuildConceptMap(
                 concept_map["group"].append(element)
 
         print(f"Writing Harmony ConceptMap: {outname}")
+        Path(outname).parent.mkdir(parents=True, exist_ok=True)
         with open(outname, mode="wt") as f:
             f.write(json.dumps(concept_map, indent=2))
 
