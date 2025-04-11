@@ -32,7 +32,7 @@ def ParseBundle(bundle_file, resource_consumers):
     """Iterate over each resource inside the bundle and pass those
     resources to each resource_consumers."""
 
-    content = json.load(bundle_file, object_pairs_hook=OrderedDict)
+    content = json.load(bundle_file) 
     if content is not None:
 
         modules = list(content.keys())
