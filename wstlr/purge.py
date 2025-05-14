@@ -35,7 +35,8 @@ resource_order = [
     'ResearchStudy',
     'ResearchSubject',
     'DocumentReference',
-    'Task'
+    'Task',
+    'Person'
 ]
 
 class ResourceDeleter:
