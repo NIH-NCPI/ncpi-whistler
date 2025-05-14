@@ -35,6 +35,7 @@ resource_order = [
     'ResearchStudy',
     'ResearchSubject',
     'DocumentReference',
+    "List",
     'Task',
     'Person'
 ]
