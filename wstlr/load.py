@@ -180,11 +180,7 @@ class ResourceLoader:
         There is no harm in calling it even during a non-asynchronous run
         """
         if self.thread_executor is not None:
-            start_time = datetime.datetime.now()
             self.records_loaded += len(self.load_queue)
-            # if msg is None:
-            #    msg = f"Launching threads ({len(self.load_queue)} | {self.records_loaded})"
-            # print(f"Launching threads ({len(self.load_queue)} | {self.records_loaded})")
 
             if msg is not None:
                 for entry in track(
@@ -194,7 +190,6 @@ class ResourceLoader:
             else:
                 for entry in concurrent.futures.as_completed(self.load_queue):
                     entry.result()
-            # print(f"Thread queue ({len(self.load_queue)}) completed in {(datetime.datetime.now() - start_time).seconds}s. {len(self.delayed_loading)} remain unloaded.")
             self.load_queue = []
 
     def save_fails(self, filename):
@@ -283,9 +278,8 @@ class ResourceLoader:
                     build_references(resource, self.idcache, parent_key=None)
                 self.add_job_to_queue(group_name, resource)
 
-            except InvalidReference as e:
+            except InvalidReference:
                 with load_lock:
-                    # print(e.message())
                     delayed_again.append((group_name, resource))
 
         with load_lock:
@@ -347,8 +341,6 @@ class ResourceLoader:
         if resource_type in ["CodeSystem", "ValueSet", "ConceptMap"]:
             result = self.client.load(resource_type, resource, validate_only)
             if result["status_code"] < 300:
-                # print(result)
-
                 # Validation responses without any warnings or errors have no
                 # response entry
                 if "response" in result:
@@ -376,24 +368,9 @@ class ResourceLoader:
 
                 identifier_type = "identifier"
                 if resource_type in ["ObservationDefinition"]:
-                    # resource_identifier = f"{system}|{uniqid}"
                     resource_identifier = None
                 else:
                     resource_identifier = uniqid
-                """
-                else:
-                    # ObservationDefinition is very early stages and has 
-                    # no real search properties defined. So, we can't
-                    # recall a prexisting ID if it isn't in our DB
-                    resource_identifier = None
-                    """
-                """
-                    code_value = resource['code']['coding'][0]
-                    code_system = code_value['system']
-                    code = code_value['code']
-                    resource_identifier = f"{code_system}:{code}"
-                    identifier_type = "code"
-                    """
 
             # If we couldn't find an id in the cache, we will pass the
             # identifier parameter in so that it will attempt to "get"
@@ -584,8 +561,6 @@ def exec():
     )
     fhir_client = FhirClient(host_config[args.host], idcache=cache_remote_ids)
 
-    # cache = IdCache(config['study_id'], fhir_client.target_service_url)
-
     loader = ResourceLoader(
         args.identifier_prefix,
         fhir_client,
@@ -618,8 +593,6 @@ def exec():
             loader.launch_threads(
                 msg=f"Attempting to load {len(loader.delayed_loading)} left-overs. "
             )
-
-            # print(f"Attempting to load {len(loader.delayed_loading)} left-overs. ")
             loader.retry_loading(
                 msg=f"Attempting to load {len(loader.delayed_loading)} left-overs. "
             )

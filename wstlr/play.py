@@ -60,11 +60,8 @@ def run_whistle(
         "-output_dir",
         outputdir,
     ]
-    # print(" ".join(command))
     for cmd in track([command], description="Running Whistle"):
         result = run(cmd, capture_output=True)
-
-    # result = run(command, capture_output=True)
 
     if result.returncode != 0:
         print(f"Std out    : {result.stdout.decode()}")
@@ -436,7 +433,6 @@ def exec():
                 exit_on_dupes=not args.permit_cache_dupes,
             )
 
-            # cache = IdCache(config['study_id'], fhir_client.target_service_url)
             loader = ResourceLoader(
                 cfg.identifier_prefix,
                 fhir_client,

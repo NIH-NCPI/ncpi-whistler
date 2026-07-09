@@ -51,7 +51,6 @@ def ObjectifyHarmony(harmony_csv, curies, study_component, url_base=system_base)
         redundant_notice = defaultdict(lambda: defaultdict(lambda: 0))
         for line in reader:
             if line["table_name"].strip() != "":
-                # print(line.keys())
                 local_cs = line["local code system"]
                 if local_cs not in mappings:
                     mappings[local_cs] = {
@@ -172,8 +171,6 @@ def ObjectifyHarmony(harmony_csv, curies, study_component, url_base=system_base)
         cm_obj["target_codes"].append(
             {"system": target_cs, "table_name": "", "parent_varname": "", "codes": []}
         )
-        # if  target_cs in curies:
-        #    curie = curies[target_cs] + ":"
         for code in targets[target_cs]:
             coding = deepcopy(targets[target_cs][code])
             coding["code"] = f"{curie}{coding['code']}"

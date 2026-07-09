@@ -261,7 +261,6 @@ def DataCsvToObject(config):
 
     for category, table in config.dataset.items():
         embedable = table.get("embed")
-        # filenames = table['filename'].split(",")
 
         if embedable is not None:
             embd = EmbedableTable(category, embedable["dataset"], embedable["colname"])

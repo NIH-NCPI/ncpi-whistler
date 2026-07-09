@@ -58,8 +58,7 @@ class IdCache:
                 # The read is a onetime only (per resourceType/run) whereas, 
                 # the write is very frequent for loads with new records. So, 
                 # the index will slow down writes to benefit a small number of 
-                # cases? 
-                # self.db_cache.execute(f"CREATE INDEX idx-{entity_type} ON {entity_type}(study_id, fhir_endpoint)")
+                # cases?
 
                 # Populate RAM cache from DB
                 for unique_id, entity_type, target_id in self.db_cache.execute(

@@ -51,9 +51,6 @@ def ParseBundle(bundle_file, resource_consumers):
                 content[resource_group],
                 f"Processing {len(content[resource_group])} resources for {resource_group}",
             ):
-                # for resource in content[resource_group]:
-                # print(resource)
-                # print(f"{resource_group}:{resource}")
                 for consumer in resource_consumers:
                     consumer(resource_group, resource)
         return content.keys()
@@ -135,10 +132,6 @@ class Bundle:
 
             # For now, let's just skip the ID so that it works in a more general sense
             verb = self.verb
-            if "resourceType" not in resource or "id" not in resource:
-                pass
-                # print(resource.keys())
-
             if "id" in resource and self.request_type == RequestType.PUT:
                 id = resource["id"]
                 destination = f"{resource['resourceType']}/{resource['id']}"

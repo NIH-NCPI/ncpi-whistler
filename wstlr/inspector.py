@@ -88,7 +88,6 @@ class ResourceInspector:
             print("identifier doesn't have a system")
             sys.exit(1)
         idval = f"{identifier['system']}:{identifier['value']}"
-        #print(idval)
 
         if idval in self.identifiers[resourcetype]:
             print(resourcetype)

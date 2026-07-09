@@ -48,7 +48,6 @@ def exec():
     whistle_context = {"profiles": not args.no_profiles}
     for config_file in args.config:
         config = Configuration(config_file)
-        # config = safe_load(config_file)
 
         if config.projector_lib:
             whistle_src_dir = Path(config.projector_lib)

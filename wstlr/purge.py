@@ -217,7 +217,6 @@ def exec(args=None):
         "-s", 
         "--study-ids",
         type=FileType('rt'),
-        #default=open("output/whistle-output/study-ids.json", 'rt'),
         help="Name of the study IDs JSON file to pull IDs from"
     )
     parser.add_argument(
