@@ -2,13 +2,17 @@
 
 """
 
-from wstlr import die_if, system_base, dd_system_url
+from __future__ import annotations
+
+from typing import Any
+
+from wstlr import die_if, dd_system_url, system_base
 from wstlr.dd.variable import DdVariable
 
-_default_subject_id = "subject_id"
+_default_subject_id: str = "subject_id"
 
 class DdTable:
-    def __init__(self, name, study_name, description="", **kwargs):  #
+    def __init__(self, name: str, study_name: str, description: str = "", **kwargs: Any) -> None:
         self.url_base = kwargs.get("url_base", system_base)
         consent_group = kwargs.get("consent_group")
 
@@ -25,25 +29,26 @@ class DdTable:
             self.url_base, "CodeSystem", self.consent_group, self.name, None
         )
 
-        self.variables = {}
-        self.key = []
+        self.variables: dict[str, DdVariable] = {}
+        self.key: list[str] = []
         self.subject_id = kwargs.get("subject_id")
         if self.subject_id is None:
             self.subject_id = DdTable.default_subject_id()
 
-    @classmethod 
-    def default_subject_id(cls, colname=None):
+    @classmethod
+    def default_subject_id(cls, colname: str | None = None) -> str | None:
         global _default_subject_id
         if colname is None:
             return _default_subject_id
         _default_subject_id = colname
+        return None
 
-    def add_to_varname_lookup(self, lkup):
+    def add_to_varname_lookup(self, lkup: dict[str, str]) -> None:
         for varname, variable in self.variables.items():
             variable.add_to_varname_lookup(lkup)
 
     @property
-    def vardata(self):
+    def vardata(self) -> list[DdVariable]:
         vars = []
 
         for varname, variable in self.variables.items():
@@ -51,16 +56,16 @@ class DdTable:
         return vars
 
     @property
-    def desc(self):
+    def desc(self) -> str:
         if self.description is not None and len(self.description.strip()) > 0:
             return self.description
         return self.name
 
     @property
-    def id_col(self):
+    def id_col(self) -> str | None:
         return self.subject_id
 
-    def add_variable(self, **kwargs):
+    def add_variable(self, **kwargs: Any) -> None:
         var = DdVariable(
             study_name=self.study_name,
             table_name=self.name,
@@ -78,14 +83,11 @@ class DdTable:
         if var.key_component:
             self.key.append(var.varname)
 
-    def obj_as_cs(self):
-        obj = {"BROKEN": ""}
-
-    def obj_as_dd_variable(self):
+    def obj_as_dd_variable(self) -> dict[str, Any]:
         """Data dictionary variables do not dump their variable's values"""
         """only variable name/desc"""
 
-        values = []
+        values: list[dict[str, Any]] = []
         for var in self.variables:
             values.append(
                 {
@@ -103,8 +105,8 @@ class DdTable:
 
         return obj
 
-    def variables_as_cs(self):
-        variable_cs = []
+    def variables_as_cs(self) -> list[dict[str, Any]]:
+        variable_cs: list[dict[str, Any]] = []
 
         for var in self.variables:
             cs = self.variables[var].obj_as_cs()
@@ -113,10 +115,10 @@ class DdTable:
 
         return variable_cs
 
-    def obj_as_dd_table(self):
+    def obj_as_dd_table(self) -> dict[str, Any]:
         """Data Dictionary tables list variable's content (but only as code/desc)"""
 
-        variables = []
+        variables: list[dict[str, Any]] = []
         for var in self.variables:
             ddvar = self.variables[var].obj_as_dd_variable()
             if ddvar is not None:
@@ -126,8 +128,8 @@ class DdTable:
 
         return obj
 
-    def obj_as_cs(self):
-        values = []
+    def obj_as_cs(self) -> dict[str, Any]:
+        values: list[dict[str, Any]] = []
         for variable in self.variables:
             values.append(
                 {
@@ -145,20 +147,3 @@ class DdTable:
         }
 
         return obj
-
-    def as_obj(self, deep_export=False):
-        obj = {
-            "table_name": self.name,
-            "study": self.study_name,
-            "url": self.url,
-            "variables": [],
-        }
-
-        variables = []
-        for var in self.variables:
-            variables.append({"code": var.varname, "description": var.desc})
-
-            if deep_export:
-                variables[-1]["values"] = var.values_for_json()
-        if self.consent_group is not None:
-            obj["consent_group"] = self.consent_group

@@ -23,6 +23,7 @@ Repository = "https://github.com/NIH-NCPI/ncpi-whistler"
 
 [project.optional-dependencies]
 test = ["pytest"]
+dev = ["pytest", "mypy"]
 
 [project.scripts]
 play = "wstlr.play:exec"
@@ -50,3 +51,12 @@ include-package-data = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.mypy]
+files = ["wstlr"]
+ignore_missing_imports = true
+
+# Not yet hinted -- remove each entry as it's brought under mypy.
+[[tool.mypy.overrides]]
+module = ["wstlr.dd.dd_from_fhir", "wstlr.load"]
+ignore_errors = true

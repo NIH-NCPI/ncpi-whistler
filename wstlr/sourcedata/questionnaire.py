@@ -6,7 +6,6 @@ This class will generate the whistle code to process row-level data as Questionn
 """
 from wstlr import TableType, determine_table_type
 
-from wstlr.extractor import ObjectifyDD, fix_fieldname
 from wstlr.sourcedata.sourcedata_base import srcd_questionnaire_def_base
 from wstlr.sourcedata import (
     _string_types,
@@ -73,40 +72,6 @@ def exec():
         entry_fns = []
 
         dd_table_data = config.study_dd.tables
-        """
-        for category in config["dataset"].keys():
-            if "data_dictionary" in config["dataset"][category]:
-                table_type = determine_table_type(config["dataset"][category])
-
-                with open(
-                    config["dataset"][category]["data_dictionary"]["filename"],
-                    "rt",
-                    encoding="utf-8-sig",
-                ) as f:
-                    delimiter = ","
-                    if "delimiter" in config["dataset"][category]["data_dictionary"]:
-                        delimiter = config["dataset"][category]["data_dictionary"][
-                            "delimiter"
-                        ]
-
-                    dd, cs_values = ObjectifyDD(
-                        config["study_id"],
-                        consent_group,
-                        category,
-                        f,
-                        dd_codesystems,
-                        config["dataset"][category]["data_dictionary"].get("colnames"),
-                        delimiter=delimiter,
-                    )
-
-                    dd_table_data.append(
-                        DdTable(
-                            dd,
-                            config["dataset"][category],
-                            fix_fieldname(config["id_colname"]),
-                        )
-                    )
-        """
         template_dir = Path(__file__).resolve().parent / "templates"
         with open(template_dir / "questionnaires.wstl", "rt") as template_file:
             jinja_env = Environment()  # trim_blocks = True) #, lstrip_blocks = True)

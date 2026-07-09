@@ -17,17 +17,26 @@
     
 """
 
-from collections import defaultdict
-from threading import Lock
+from __future__ import annotations
+
 import json
+import os
+import sqlite3
+from collections import defaultdict
+from collections.abc import KeysView
 from pathlib import Path
-import sqlite3 
-
-
-
+from threading import Lock
+from typing import Any
 
 class StudyIDs:
-    def __init__(self, fhir_endpoint, study_id=None, chunk_size=1000, threaded=False, thread_count=10):
+    def __init__(
+        self,
+        fhir_endpoint: str,
+        study_id: str | None = None,
+        chunk_size: int = 1000,
+        threaded: bool = False,
+        thread_count: int = 10,
+    ) -> None:
         self.servername = fhir_endpoint
         self.study_id = study_id
         self.chunk_size = chunk_size
@@ -35,20 +44,20 @@ class StudyIDs:
         # Working on the assumption that we only have one study/host
         # active at any given time, the in-memory cache is very simple
         # resourceType => [id1, id2, etc]
-        self.ids = defaultdict(list)
+        self.ids: defaultdict[str, list[str]] = defaultdict(list)
 
         # I guess we can add the lock to the instance in case
         # we actually do want to maintain more than one study/host
         # at once
         self.lock = Lock()
 
-        self.data = None
+        self.data: dict[str, Any] | None = None
 
-    def add_id(self, resourceType, id):
+    def add_id(self, resourceType: str, id: str) -> None:
         with self.lock:
             self.ids[resourceType].append(id)
 
-    def load_from_file(self, filename):
+    def load_from_file(self, filename: str | os.PathLike[str]) -> list[str]:
         if self.data is None:
             print(f"Loading IDs from file: {filename}")
 
@@ -58,25 +67,25 @@ class StudyIDs:
                 with id_file.open('rt') as f:
                     self.data = json.load(f)
 
-            studies = []
+        return [
+            study
+            for study in self.data.keys()
+            if self.servername in self.data[study]
+        ]
 
-            for study in self.data.keys():
-                if self.servername in self.data[study]:
-                    studies.append(study)
-        
-        return studies
-
-    def get_ids(self, study_id, resource):
+    def get_ids(self, study_id: str, resource: str) -> list[str]:
+        assert self.data is not None
         return self.data[study_id][self.servername][resource]
 
-    def list_resource_types(self, study_id):
-        assert(self.data is not None)
+    def list_resource_types(self, study_id: str) -> KeysView[str]:
+        assert self.data is not None
 
         return self.data[study_id][self.servername].keys()
 
-    def dump_to_file(self, filename):
+    def dump_to_file(self, filename: str | os.PathLike[str]) -> None:
+        assert self.study_id is not None
         print(f"dumping IDs to file: {filename}")
-        data = {}
+        data: dict[str, Any] = {}
         id_file = Path(filename)
         if id_file.exists():
             with id_file.open('rt') as f:
