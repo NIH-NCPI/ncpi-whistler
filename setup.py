@@ -14,6 +14,7 @@ setup(
     name="NCPI-Whistler",
     version=version["__version__"],
     description=f"NCPI Whistler Pipeline {version['__version__']}",
+    license="MIT",
     packages=find_namespace_packages(),
     include_package_data=True,
     install_requires=requirements,
