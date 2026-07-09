@@ -13,7 +13,6 @@ from wstlr import die_if, system_base
 from tempfile import TemporaryFile
 import sys
 
-import pdb
 
 class DdLoader:
     required_columns =  [

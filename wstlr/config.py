@@ -13,7 +13,6 @@ from wstlr.dd.table import DdTable
 from wstlr import fix_fieldname
 
 from pathlib import Path
-import pdb
 
 
 class Configuration:

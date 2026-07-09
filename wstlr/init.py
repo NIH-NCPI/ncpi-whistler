@@ -8,7 +8,6 @@ from packaging import version
 from yaml import safe_load
 
 from wstlr import die_if
-import pdb
 
 from argparse import ArgumentParser, FileType
 from jinja2 import Template
@@ -18,7 +17,7 @@ from jinja2 import Template
 if version.parse(sys.version.split(" ")[0]) < version.parse("3.10"):
     try:
         from importlib_resources import files
-    except:
+    except ImportError:
         die_if(
             True,
             f"""You are using python version, """
