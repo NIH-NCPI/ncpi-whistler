@@ -42,7 +42,7 @@ class DdVariable:
             self.study_component = f"{study_name}-{self.consent_group}"
 
         self.url = dd_system_url(
-            self.url_base, "CodeSystem", self.study_component, table_name, self.varname
+            self.url_base, "CodeSystem", self.consent_group, table_name, self.varname
         )
 
         # These are not currently used by Whistler, at least not in this way

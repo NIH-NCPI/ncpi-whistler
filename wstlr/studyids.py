@@ -50,7 +50,7 @@ class StudyIDs:
 
     def load_from_file(self, filename):
         if self.data is None:
-            print("Loading IDs from file: {filename}")
+            print(f"Loading IDs from file: {filename}")
 
             self.data = {}
             id_file = Path(filename)

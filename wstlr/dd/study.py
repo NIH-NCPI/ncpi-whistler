@@ -12,10 +12,10 @@ class DdStudy:
         self.name = name
         self.description = description 
         self.url_base = url_base
-        self.url = dd_system_url(self.url_base, 
-                                "CodeSystem", 
-                                self.name, 
-                                "DataSet", 
+        self.url = dd_system_url(self.url_base,
+                                "CodeSystem",
+                                None,
+                                "DataSet",
                                 None)
         self.tables = {}
 

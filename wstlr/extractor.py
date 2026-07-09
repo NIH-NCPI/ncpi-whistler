@@ -244,9 +244,6 @@ def DataCsvToObject(config):
         dataset["study"]["publisher"] = "NCPI FHIR Working Group"
 
     consent_group = dataset["study"].get("consent_code")
-    study_component = dataset["study"]["id"]
-    if consent_group is not None:
-        study_component = f"{study_component}-{consent_group}"
 
     dataset["study"]["data-dictionary"][0] = config.study_dd.obj_as_dd()
     dataset["code-systems"].append(config.study_dd.obj_as_cs())
@@ -308,7 +305,7 @@ def DataCsvToObject(config):
                         ObjectifyHarmony(
                             harmony_file,
                             curies=config.curies,
-                            study_component=study_component,
+                            consent_group=consent_group,
                         )
                     )
 

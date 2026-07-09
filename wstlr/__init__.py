@@ -158,11 +158,17 @@ def fix_fieldname(fieldname):
     )
 
 
-def dd_system_url(url_base, term_type, study_component, table_name, varname):
-    if varname is None:
-        return f"{url_base}/{term_type}/data-dictionary/{fix_fieldname(table_name)}"
-    else:
-        return f"{url_base}/{term_type}/data-dictionary/{fix_fieldname(table_name)}/{fix_fieldname(varname)}"
+def dd_system_url(url_base, term_type, consent_group, table_name, varname):
+    """Build a data-dictionary system URL, scoped under the consent group
+    (if any) so tables/variables in different consent groups of the same
+    study don't collide on the same URL."""
+    path = f"{url_base}/{term_type}/data-dictionary"
+    if consent_group is not None and str(consent_group).strip() != "":
+        path = f"{path}/{fix_fieldname(consent_group)}"
+    path = f"{path}/{fix_fieldname(table_name)}"
+    if varname is not None:
+        path = f"{path}/{fix_fieldname(varname)}"
+    return path
 
 
 _boolean_values = set(["true", "yes", "1", 1, True])

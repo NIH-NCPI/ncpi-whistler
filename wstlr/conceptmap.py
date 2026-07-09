@@ -32,7 +32,7 @@ from wstlr import system_base, dd_system_url
 # code,text,code system,local code,display,local code system,comment
 
 
-def ObjectifyHarmony(harmony_csv, curies, study_component, url_base=system_base):
+def ObjectifyHarmony(harmony_csv, curies, consent_group, url_base=system_base):
     # source system => target system => source code => (target_codes)
     mappings = {}  # defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     sources = defaultdict(dict)
@@ -149,7 +149,7 @@ def ObjectifyHarmony(harmony_csv, curies, study_component, url_base=system_base)
             curie = curies[csystem] + ":"
 
         system_url = dd_system_url(
-            url_base, "CodeSystem", study_component, tablename, csystem
+            url_base, "CodeSystem", consent_group, tablename, csystem
         )
 
         cm_obj["source_codes"].append(
@@ -182,7 +182,7 @@ def ObjectifyHarmony(harmony_csv, curies, study_component, url_base=system_base)
     for local_cs in mappings:
         table_name = mappings[local_cs]["table"]
         system_url = dd_system_url(
-            url_base, "CodeSystem", study_component, table_name, local_cs
+            url_base, "CodeSystem", consent_group, table_name, local_cs
         )
         for target_cs in mappings[local_cs]["group"]:
             local_mapping = {
