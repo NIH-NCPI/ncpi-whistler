@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "NCPI-Whistler"
+dynamic = ["version"]
+description = "NCPI Whistler Pipeline"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dependencies = [
+    "PyYAML",
+    "packaging",
+    "ncpi_fhir_client @ git+https://github.com/ncpi-fhir/ncpi-fhir-client",
+    "rich",
+    "jinja2",
+]
+
+[project.urls]
+Homepage = "https://nih-ncpi.github.io/ncpi-whistler/"
+Repository = "https://github.com/NIH-NCPI/ncpi-whistler"
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+play = "wstlr.play:exec"
+buildcm = "wstlr.conceptmap:exec"
+extractjson = "wstlr.extractor:exec"
+bundleup = "wstlr.bundle:exec"
+builddd = "wstlr.dd.dd_from_fhir:exec"
+delfhir = "wstlr.purge:exec"
+inspectjson = "wstlr.inspector:exec"
+buildsrcobs = "wstlr.sourcedata.obscomp:exec"
+buildsrcqr = "wstlr.sourcedata.questionnaire:exec"
+init-play = "wstlr.init:exec"
+igload = "wstlr.igload:exec"
+dd-json-to-csv = "wstlr.dd.json_parser:convert_json_to_csv"
+
+[tool.setuptools.dynamic]
+version = { attr = "wstlr.version.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["wstlr*"]
+namespaces = true
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
