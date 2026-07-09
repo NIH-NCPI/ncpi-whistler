@@ -22,7 +22,7 @@ class DdTable:
             self.study_component = f"{self.study_name}-{self.consent_group}"
 
         self.url = dd_system_url(
-            self.url_base, "CodeSystem", self.study_component, self.name, None
+            self.url_base, "CodeSystem", self.consent_group, self.name, None
         )
 
         self.variables = {}
