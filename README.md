@@ -1,50 +1,44 @@
-# NOVEMBER 2024 - Breaking Changes
-Please note that version 0.3.0 introduces breaking changes to the YAML configuration: 
-Projections are not modular and require entries for each of the following: study, dataset, harmonized. Inside, you can create a directory, current (the default choice for projection version), and move your projections into that directory. You can then create an entry for each of the modules that point to the same projection library: 
-
-Example: 
-```
-projections: 
-  study: projector
-  dataset: projector
-  harmonized: projector
-```
-
-You should move your entry point (typically _entry.wstl) into the projector directory (whistler will look to the version's parent directory for the file)
-
-
 # NCPI Whistler
-NCPI Whistler provides a complete pipeline to transform research data tables into FHIR resources loaded into a FHIR Server using a combination of standard Python scripting, [Whistle](https://github.com/GoogleCloudPlatform/healthcare-data-harmonization) and the standard FHIR Rest API for loading data into the target FHIR server. 
 
-Whistle is google's Data Transformation Language which can be used to transform arbitrary JSON objects into FHIR compliant JSON objects. In addition to providing a language specific to data transformations, it also integrates nicely with [FHIR ConceptMaps](http://hl7.org/fhir/R4/conceptmap.html) making it a great choice for use in harmonizing the various research datasets into a much more consistant, FHIR representation. 
+[![GitHub release](https://img.shields.io/github/v/release/NIH-NCPI/ncpi-whistler)](https://github.com/NIH-NCPI/ncpi-whistler/releases)
+[![Python 3.7+](https://img.shields.io/badge/python-3.7%2B-blue)](docs/installation.md)
+[![Docs](https://img.shields.io/badge/docs-nih--ncpi.github.io-blue)](https://nih-ncpi.github.io/ncpi-whistler/)
+[![GitHub last commit](https://img.shields.io/github/last-commit/NIH-NCPI/ncpi-whistler)](https://github.com/NIH-NCPI/ncpi-whistler/commits/main)
 
-In order to employ whistle, however, the data must be formatted as JSON and any code transformations must be provided as ConceptMaps. NCPI-Whistler aims to do just that as well as aide users in the delivery of those FHIR resources into the FHIR server of choice. 
+NCPI Whistler is a complete pipeline that transforms research data tables into FHIR resources and loads them into a FHIR server, combining standard Python scripting, Google's [Whistle](https://github.com/GoogleCloudPlatform/healthcare-data-harmonization) data transformation language, and the FHIR REST API.
 
-## Installing Whistler
-Whistler can be installed as a native python application or as a docker container. Please see the manual for [installation instructions](https://nih-ncpi.github.io/ncpi-whistler/#/installation).
+Whistle is Google's Data Transformation Language for turning arbitrary JSON into FHIR-compliant JSON. It integrates with [FHIR ConceptMaps](http://hl7.org/fhir/R4/conceptmap.html), making it a great fit for harmonizing research datasets into a consistent FHIR representation. To use Whistle, though, the data must first be JSON and any code translations must be provided as ConceptMaps — that's the gap NCPI Whistler fills, along with delivering the resulting FHIR resources into the server of your choice.
 
-## Whistler Walk-through
-If you are curious about whether Whister is right for your project, there is a [tutorial](https://nih-ncpi.github.io/NCPI-Whistler-Tutorial) available to help you get started. 
+## Quick Start
 
-## Extraction
-Whistle transforms JSON into JSON. As such, the input file must be a JSON file. NCPI-Whistler provides a simple YAML configuration for the dataset which is used to extract data from the CSV format into JSON objects suitable for use by Whistle functions. The goal here will be to provide a rich system to support many different data layouts and configurations. 
+```bash
+pip install .
+play my_study.yaml --host dev
+```
 
-## Transformation
-NCPI-Whistler will convert simple to use CSV files into valid FHIR ConceptMaps which are used by Whistle to harmonize the various codes used throughout the dataset. When done properly, these CSV file(s) will provide a reasonably comprehensive mapping from the data values found inside the dataset to appropriate common vocabularies such as LOINC, SNOMED, HPO, Mondo, etc. These files should be easy to edit and update and will be automatically employed within the whistle code itself. 
+`play` is the orchestrator: given a study's YAML configuration, it builds harmony ConceptMaps, extracts the CSV data into JSON, runs it through Whistle, and (with `--host` set) loads the result into the named FHIR server. Without `--host`, it stops after generating the Whistle output so you can inspect it before loading anything.
 
-## Load
-Loading into and validating data against a FHIR server isn't particularly difficult, but NCPI-Whistler aims to provide a complete pipeline for the process and therefor, will provide the ability to load the transformed output into the FHIR server of choice. 
+See the [installation guide](docs/installation.md) for prerequisites (Python, Whistle itself, and its Go/Java/protobuf toolchain) and the [tutorial](https://github.com/NIH-NCPI/NCPI-Whistler-Tutorial) for a full walkthrough of setting up a study from scratch.
 
-The load process is entirely modular allowing one to load chunks of data based on the whistle output organization (called modules which are defined by the Whistle projection's author) as well as by specific resource type. This level of control allows the user to load only the resources that should be loaded to save time and, potentially, transaction costs when loading data into a cloud based FHIR server. 
+## How It Works
 
-# Application Suite
-NCPI Whistler is actually a suite or programs designed to perform different aspects of the FHIR transformation and load process. These tools include:
-  * play - The main script that runs the pipeline to create harmony concept maps, extracts data from CSV, runs whistle and (optionally) loads data into a FHIR server. 
-  * delfhir - A tool that is designed to help mass delete FHIR resources.
-  * whistle generation - There are several tools designed to initialize a whistle projection, create [NCPI IG metadata](https://nih-ncpi.github.io/ncpi-fhir-ig/study_metadata.html) resources based on a study's actual data-dictionary as well as functions that are recommended for creating identifiers, filtering items out of lists, etc. 
+**Extraction** — Whistle transforms JSON into JSON, so the input must be JSON first. NCPI Whistler provides a YAML configuration for each dataset, used to extract data from CSV into JSON objects suitable for Whistle. Extraction also supports embedding rows from one table into another based on a shared join column (e.g. attaching a subject's observations to their record) and basic GROUP BY-style aggregation of rows within a table.
 
-## play
-play is the main pipeline script that orchestrates the entire process of converting CSV files into resources loaded into a FHIR server. In order for play to run, you must have a properly defined configuration YAML file which describes the study be processed as well as the files that make up the study. Each of the CSV files must have a matching data dictionary file enumerating the column names, basic type and any enumerated values if the field is a "drop down" style variable. 
+**Transformation** — NCPI Whistler converts simple CSV files into valid FHIR ConceptMaps, which Whistle uses to harmonize the various codes used throughout the dataset into common vocabularies such as LOINC, SNOMED, HPO, and Mondo.
 
+**Load** — The load process is modular: you can load by Whistle output module or by specific resource type, so you only load what needs loading — saving time and, on cloud-hosted FHIR servers, transaction costs.
 
+## Application Suite
 
+NCPI Whistler installs as a suite of command-line tools, each covering a different part of the pipeline:
+
+| Command | Purpose |
+| --- | --- |
+| `play` | Runs the full pipeline: builds ConceptMaps, extracts CSV, runs Whistle, and optionally loads into a FHIR server. |
+| `delfhir` | Mass-deletes FHIR resources from a target server. |
+| `igload` | Loads resource definitions from one or more FHIR Implementation Guides into a FHIR server. |
+| `buildcm`, `extractjson`, `bundleup`, `builddd`, `inspectjson`, `init-play`, `buildsrcobs`, `buildsrcqr`, `dd-json-to-csv` | Individual pipeline steps and Whistle-projection scaffolding tools — see the [reference manual](https://nih-ncpi.github.io/ncpi-whistler/#/ref/) for each. |
+
+## Documentation
+
+Full documentation lives at [nih-ncpi.github.io/ncpi-whistler](https://nih-ncpi.github.io/ncpi-whistler/), including the [FHIR hosts file](docs/fhir_hosts.md), [harmony file](docs/harmony.md), and [Whistle installation](docs/whistle.md) references. See [CHANGELOG.md](CHANGELOG.md) for breaking changes and release notes.
