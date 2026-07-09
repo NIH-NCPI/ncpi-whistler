@@ -18,6 +18,7 @@ setup(
     packages=find_namespace_packages(),
     include_package_data=True,
     install_requires=requirements,
+    extras_require={"test": ["pytest"]},
     entry_points={
         "console_scripts": [
             "play = wstlr.play:exec",

@@ -56,10 +56,13 @@ class TableType(Enum):
 class InvalidType(Exception):
     def __init__(self, bad_type):
         self.type_name = bad_type
+        super().__init__(self.message())
 
     def message(self):
-        return f"""Unrecognized variable type, {dd_type}. Please see """
-        """about adding this type to the categories in Whistler.\n"""
+        return (
+            f"Unrecognized variable type, {self.type_name}. Please see "
+            "about adding this type to the categories in Whistler.\n"
+        )
 
 
 def StandardizeDdType(dd_type):
@@ -134,7 +137,7 @@ def die_if(do_die, msg, errnum=1):
         sys.exit(errnum)
 
 
-xcleaner = re.compile(";\s+")
+xcleaner = re.compile(r";\s+")
 
 
 def clean_values(valuestring):

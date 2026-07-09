@@ -1,5 +1,6 @@
 # NCPI Whistler
 
+[![Tests](https://github.com/NIH-NCPI/ncpi-whistler/actions/workflows/tests.yml/badge.svg)](https://github.com/NIH-NCPI/ncpi-whistler/actions/workflows/tests.yml)
 [![GitHub release](https://img.shields.io/github/v/release/NIH-NCPI/ncpi-whistler)](https://github.com/NIH-NCPI/ncpi-whistler/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7%2B-blue)](docs/installation.md)
@@ -20,6 +21,13 @@ play my_study.yaml --host dev
 `play` is the orchestrator: given a study's YAML configuration, it builds harmony ConceptMaps, extracts the CSV data into JSON, runs it through Whistle, and (with `--host` set) loads the result into the named FHIR server. Without `--host`, it stops after generating the Whistle output so you can inspect it before loading anything.
 
 See the [installation guide](docs/installation.md) for prerequisites (Python, Whistle itself, and its Go/Java/protobuf toolchain) and the [tutorial](https://github.com/NIH-NCPI/NCPI-Whistler-Tutorial) for a full walkthrough of setting up a study from scratch.
+
+### Running the tests
+
+```bash
+pip install -e ".[test]"
+pytest
+```
 
 ## How It Works
 
