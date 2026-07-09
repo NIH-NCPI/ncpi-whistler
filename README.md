@@ -1,6 +1,7 @@
 # NCPI Whistler
 
 [![GitHub release](https://img.shields.io/github/v/release/NIH-NCPI/ncpi-whistler)](https://github.com/NIH-NCPI/ncpi-whistler/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7%2B-blue)](docs/installation.md)
 [![Docs](https://img.shields.io/badge/docs-nih--ncpi.github.io-blue)](https://nih-ncpi.github.io/ncpi-whistler/)
 [![GitHub last commit](https://img.shields.io/github/last-commit/NIH-NCPI/ncpi-whistler)](https://github.com/NIH-NCPI/ncpi-whistler/commits/main)
@@ -42,3 +43,7 @@ NCPI Whistler installs as a suite of command-line tools, each covering a differe
 ## Documentation
 
 Full documentation lives at [nih-ncpi.github.io/ncpi-whistler](https://nih-ncpi.github.io/ncpi-whistler/), including the [FHIR hosts file](docs/fhir_hosts.md), [harmony file](docs/harmony.md), and [Whistle installation](docs/whistle.md) references. See [CHANGELOG.md](CHANGELOG.md) for breaking changes and release notes.
+
+## License
+
+[MIT](LICENSE) © 2026 Vanderbilt University Medical Center
