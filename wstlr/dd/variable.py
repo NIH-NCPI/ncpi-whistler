@@ -20,7 +20,6 @@ attributes based on the lookup table provided to the table loader.
 from wstlr import evaluate_bool, _data_dictionary_type_map, system_base, dd_system_url
 import re
 import sys
-import pdb
 
 from wstlr import fix_fieldname
 
@@ -71,7 +70,6 @@ class DdVariable:
 
     def parse_data_type(self, data_type):
         for dt in _data_dictionary_type_map.keys():
-            # pdb.set_trace()
             if data_type.lower() in _data_dictionary_type_map[dt]:
                 return _data_dictionary_type_map[dt][0]
         # if it doesn't match, why not just report the problem and exit

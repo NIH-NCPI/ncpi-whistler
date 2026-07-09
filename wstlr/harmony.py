@@ -12,7 +12,6 @@ import json
 import csv
 from copy import deepcopy
 
-import pdb
 
 class CodeEntry:
     def __init__(self, code, system, display, comment):
@@ -88,7 +87,6 @@ def ParseJSON(input_json, out_csv_file, variable_consumers=[], filter=[]):
             v = Variable(variable, table_name)
             current_variable_name = v.varname
             #if current_variable_name == 'q-gastro':
-            #    pdb.set_trace()
             filtered_out = False
             for flt in filter:
                 filtered_out = filtered_out or flt(v)
@@ -107,16 +105,14 @@ def ParseJSON(input_json, out_csv_file, variable_consumers=[], filter=[]):
                         try:
                             float(vdesc)
                             # Basically, if it's a number then it's not something we will worry about
-                        except:
+                        except ValueError:
                             v = Variable({"varname":value['code'], "desc":value["description"]}, variable['varname'])
                             
                             #if v.system in ['consents']:
-                            #    pdb.set_trace()
                             filtered_out = False
                             for flt in filter:
                                 filtered_out = filtered_out or flt(v)
                             #if current_variable_name == 'q-gastro':
-                            #    pdb.set_trace()
                             if not filtered_out:
                                 for consumer in variable_consumers:
                                     consumer(v)

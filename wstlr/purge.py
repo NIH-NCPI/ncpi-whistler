@@ -12,7 +12,6 @@ import datetime
 import time
 import concurrent.futures
 from threading import Lock, current_thread, main_thread
-import pdb
 
 import sys
 from argparse import ArgumentParser, FileType
@@ -192,9 +191,7 @@ class ResourceDeleter:
             self.delayed_deletes[resource].append(id)
         else:
             print(response)
-            # self.delayed_deletes[resource].add(id)
-            pdb.set_trace()
-       
+
 
 def exec(args=None):
     if args is None:

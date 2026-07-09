@@ -10,7 +10,6 @@ import re
 import sys
 from collections import defaultdict
 from pprint import pformat
-import pdb
 from pathlib import Path
 from argparse import ArgumentParser, FileType
 import json
@@ -45,7 +44,6 @@ class InvalidReference(Exception):
         self.system = identifier["system"]
         self.value = identifier["value"]
         self.key = key
-        # pdb.set_trace()
         super().__init__(self.message())
 
     def message(self):
@@ -65,11 +63,7 @@ def build_references(record, idcache, parent_key=None):
         # Containers are backbone items, which will probably have an identifier that
         # doesn't work like a reference
         if key == "identifier" and parent_key is not None and parent_key != "container":
-            if type(value) is not dict:
-                pdb.set_trace()
             assert type(value) is dict
-            if "value" not in value:
-                pdb.set_trace()
             idcomponents = idcache.get_id(value["system"], value["value"])
             if idcomponents is not None:
                 resource_type, id = idcomponents
@@ -78,8 +72,6 @@ def build_references(record, idcache, parent_key=None):
                 # records_referenced[key] = f"{resource_type}/{id}"
                 record["reference"] = f"{resource_type}/{id}"
             else:
-                # print(value)
-                # pdb.set_trace()
                 raise InvalidReference(value, parent_key)
         else:
             if type(value) is list:
@@ -164,7 +156,6 @@ class ResourceLoader:
             if type(identifiers) is not list:
                 identifiers = [identifiers]
 
-            # pdb.set_trace()
             official = None
             for identifier in identifiers:
                 # For situations where the system doesn't exactly match our
@@ -178,8 +169,6 @@ class ResourceLoader:
                         id_match = self.identifier_rx.match(identifier["system"])
 
                     if id_match:
-                        if "value" not in identifier:
-                            pdb.set_trace()
                         return (identifier["system"], identifier["value"])
             if official is not None:
                 return (official["system"], official["value"])
@@ -291,9 +280,6 @@ class ResourceLoader:
         ):
             try:
                 with load_lock:
-                    if resource["resourceType"] == "ObservationDefinition":
-                        # pdb.set_trace()
-                        pass
                     build_references(resource, self.idcache, parent_key=None)
                 self.add_job_to_queue(group_name, resource)
 
@@ -315,7 +301,6 @@ class ResourceLoader:
             if "resourceType" not in response:
                 print(result)
                 print(f"There is no 'resourceType' in the record above")
-                pdb.set_trace()
             if response["resourceType"] != "OperationOutcome":
                 print(result)
                 print("The response resourceType should have been 'OperationOutcome")
@@ -375,8 +360,8 @@ class ResourceLoader:
             cache_id = self.idcache is not None
             try:
                 (system, uniqid) = self.get_identifier(resource)
-            except:
-                print("Something went wrong getting an identifier for: ")
+            except Exception as e:
+                print(f"Something went wrong getting an identifier for: {e}")
                 print(resource)
             resource_identifier = uniqid
             if self.idcache and "id" not in resource:
@@ -417,7 +402,6 @@ class ResourceLoader:
             while retry_count > 0:
                 retry_count -= 1
                 try:
-                    # pdb.set_trace()
                     result = self.client.post(
                         resource_type,
                         resource,
@@ -430,8 +414,6 @@ class ResourceLoader:
                 except Exception as e:
                     print(f"Exception occured when loading {resource_type}: {e}")
                     print(resource)
-                    # print(result)
-                    pdb.set_trace()
                     print(f"{system}|{resource_identifier} {identifier_type}")
                 if result["status_code"] < 300:
                     retry_count = 0
@@ -444,7 +426,6 @@ class ResourceLoader:
                         print(
                             "\tThe server is struggling for some reason and has refused our request too many times. Exiting."
                         )
-                        pdb.set_trace()
                     sleep(35)
                 else:
                     print(f"\t{result['status_code']} : {result['request_url']}")
@@ -452,14 +433,11 @@ class ResourceLoader:
         if result["status_code"] < 300:
             self.successful_loads[group_name][resource_type] += 1
             self.resource_summary[resource_type] += 1
-            # pdb.set_trace()
 
             if "id" in result["response"]:
                 self.studyids.add_id(resource_type, result["response"]["id"])
 
                 if cache_id:
-                    if system is None:
-                        pdb.set_trace()
                     self.idcache.store_id(
                         resource_type,
                         system,
@@ -475,7 +453,6 @@ class ResourceLoader:
             last_error = None
             if "issue" not in result["response"]:
                 print(pformat(result["response"]))
-                # pdb.set_trace()
             for issue in result["response"]["issue"]:
                 if issue["severity"] == "error":
                     if error_count < 5:
@@ -495,7 +472,6 @@ class ResourceLoader:
             with load_lock:
                 print(f"Skipped {skipped_warnings} warnings and {skipped_errors}.")
 
-                # pdb.set_trace()
             sys.exit(1)
         return result
 
@@ -528,7 +504,6 @@ def exec():
     parser = ArgumentParser(
         description="Load whistle output file into selected FHIR server."
     )
-    # pdb.set_trace()
     parser.add_argument(
         "--host",
         choices=env_options,
@@ -640,7 +615,6 @@ def exec():
         while len(loader.delayed_loading) > 0 and max_final_attempts > 0:
             # Make sure we clear out the queue in case there are some
             # things there that these reloads depend on
-            # pdb.set_trace()
             loader.launch_threads(
                 msg=f"Attempting to load {len(loader.delayed_loading)} left-overs. "
             )

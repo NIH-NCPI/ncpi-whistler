@@ -26,7 +26,6 @@ from collections import defaultdict
 from copy import deepcopy
 from wstlr import system_base, dd_system_url
 
-import pdb
 
 """Convert the harmonization csv file into a FHIR ConceptMap resource for use with Whistle"""
 

@@ -28,7 +28,6 @@ import sys
 from argparse import ArgumentParser, FileType
 from string import Template
 from enum import Enum
-import pdb
 from jinja2 import Environment
 
 from wstlr.config import Configuration
@@ -56,8 +55,6 @@ def exec():
     whistle_context = {"profiles": not args.no_profiles}
     for config_file in args.config:
         config = Configuration(config_file)
-        # config = safe_load(config_file)
-        # pdb.set_trace()
 
         id_colname = config.id_colname
 
@@ -106,46 +103,6 @@ def exec():
                 )
             print(f"{table} - {table_type}")
 
-        """
-        print(config.study_dd)
-        pdb.set_trace()
-
-        for table_name, table in config.study_dd.tables.items():
-
-
-        for category in config["dataset"].keys():
-            if "data_dictionary" in config["dataset"][category]:
-                table_type = determine_table_type(config["dataset"][category])
-
-                with open(
-                    config["dataset"][category]["data_dictionary"]["filename"],
-                    "rt",
-                    encoding="utf-8-sig",
-                ) as f:
-                    delimiter = ","
-                    if "delimiter" in config["dataset"][category]["data_dictionary"]:
-                        delimiter = config["dataset"][category]["data_dictionary"][
-                            "delimiter"
-                        ]
-
-                    dd, cs_values = ObjectifyDD(
-                        config["study_id"],
-                        consent_group,
-                        category,
-                        f,
-                        dd_codesystems,
-                        config["dataset"][category]["data_dictionary"].get("colnames"),
-                        delimiter=delimiter,
-                    )
-
-                    dd_table_data.append(
-                        DdTable(
-                            dd,
-                            config["dataset"][category],
-                            fix_fieldname(config["id_colname"]),
-                        )
-                    )
-        """
         template_dir = Path(__file__).resolve().parent / "templates"
         with open(
             template_dir / "observation_w_components.wstl", "rt"

@@ -4,7 +4,6 @@
 
 from wstlr import die_if, system_base, dd_system_url
 from wstlr.dd.variable import DdVariable
-import pdb
 
 _default_subject_id = "subject_id"
 
@@ -29,7 +28,6 @@ class DdTable:
         self.variables = {}
         self.key = []
         self.subject_id = kwargs.get("subject_id")
-        #pdb.set_trace()
         if self.subject_id is None:
             self.subject_id = DdTable.default_subject_id()
 

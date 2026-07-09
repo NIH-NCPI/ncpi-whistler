@@ -11,7 +11,6 @@ from time import sleep
 
 from argparse import ArgumentParser, FileType
 import sys
-import pdb
 
 
 from rich import print
@@ -47,10 +46,9 @@ def delete_resource(fn, fhir_client, data, deleted_items):
                 print(f"Deleting {fn} - {resp['status_code']}")
                 if fn not in deleted_items:
                     deleted_items.append(fn)
-            except:
+            except Exception as e:
+                print(f"Something went wrong deleting {fn}: {e}")
                 print(resp)
-                print(len(resp))
-                pdb.set_trace()
     return response
 
 
@@ -74,7 +72,6 @@ def load_resource(fn, fhir_client, data, force_overwrite):
                 print(resp["issue"])
             else:
                 print(resp)
-            pdb.set_trace()
     return response
 
 
@@ -173,12 +170,10 @@ def exec():
         if content[key]["source_type"] == "IG":
             resources = ig_source.load_resources(content[key])
         elif content[key]["source_type"] == "FILES":
-            # pdb.set_trace()
             resources = file_source.load_resources(content[key])
 
             resource_types = set()
             for resource in resources:
-                # pdb.set_trace()
                 resource_types.add(resources[resource]["resourceType"])
 
             # replace the filenames with the resource types
@@ -187,7 +182,6 @@ def exec():
         # Capture the resourceTypes found in the contents we just loaded and
         # cache them in case the user didn't restrict resources to a subset
 
-        # pdb.set_trace()
         resource_list = args.resource
         if resource_list is None:
             resource_list = content[key]["resources"]
@@ -203,7 +197,6 @@ def exec():
         excluded_list = []
         # First, let's try deleting any that may already exist
         deleted_items = []
-        # pdb.set_trace()
         if args.force_overwrite:
             print("Forcing Overwrite!")
             ig = None
@@ -230,7 +223,6 @@ def exec():
         ig = None
         print(resource_list)
         for fn, data in resources.items():
-            # pdb.set_trace()
             if (
                 data["resourceType"] in resource_list or fn in resource_list
             ) and not test_exclusion(fn, exclusion_list):
@@ -242,13 +234,11 @@ def exec():
                         fn, fhir_client, data, args.force_overwrite
                     )
                     print(f"{fn} -- {response.keys()}")
-                    pdb.set_trace()
             else:
                 print(f"\nSkipping {fn}")
                 excluded_list.append(fn)
 
         if ig is not None:
-            # pdb.set_trace()
             response = load_resource(fn, fhir_client, ig, args.force_overwrite)
             print(response)
 

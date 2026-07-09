@@ -10,7 +10,6 @@ These types of issues do represent potential errors in the whistle code.
 
 from collections import defaultdict
 from pprint import pformat
-import pdb
 from pathlib import Path
 import json
 import sys
@@ -94,7 +93,6 @@ class ResourceInspector:
         if idval in self.identifiers[resourcetype]:
             print(resourcetype)
             print(self.identifiers[resourcetype])
-            #pdb.set_trace()
 
         ReportError(idval in self.identifiers[resourcetype], resource, f"The following identifier appears multiple times: \n{pformat(identifier)}")
         self.identifiers[resourcetype].add(idval)

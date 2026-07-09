@@ -24,7 +24,6 @@ from string import Template
 
 from jinja2 import Environment
 from wstlr.config import Configuration
-import pdb
 
 
 def exec():

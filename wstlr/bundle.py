@@ -25,7 +25,6 @@ import sys
 from pathlib import Path
 from rich import print
 from rich.progress import track
-import pdb
 
 
 def ParseBundle(bundle_file, resource_consumers):
@@ -43,7 +42,6 @@ def ParseBundle(bundle_file, resource_consumers):
             modules = ["patient"] + list(set(modules) - set(["patient"]))
 
         print(f"Loading content from file, {bundle_file.name}")
-        # pdb.set_trace()
         # We expect there to be at least one key that points
         # to an array of resource records. If there are more
         # that is fine. Each will be processed independently
@@ -140,7 +138,6 @@ class Bundle:
             if "resourceType" not in resource or "id" not in resource:
                 pass
                 # print(resource.keys())
-                # pdb.set_trace()
 
             if "id" in resource and self.request_type == RequestType.PUT:
                 id = resource["id"]
@@ -150,7 +147,6 @@ class Bundle:
                 destination = f"{resource['resourceType']}"
                 id = resource["identifier"][0]["value"]
 
-            # pdb.set_trace()
             resource_data = json.dumps(resource)
 
             self.bundle_size += 1

@@ -6,8 +6,6 @@ import json
 from rich import print
 import sys
 
-import pdb
-
 
 # Return a list of valid JSON objects ready for loading
 def load_resources(config):
@@ -46,13 +44,11 @@ def load_resources(config):
                 try:
                     obj = json.loads(data)
                     if obj is None:
-                        print(filename)
-                        pdb.set_trace()
+                        print(f"{filename} parsed to an empty JSON object")
                         print(data)
                     resources[filename] = obj
-                except:
-                    print(filename)
-                    pdb.set_trace()
+                except json.JSONDecodeError as e:
+                    print(f"Failed to parse {filename}: {e}")
                     print(data)
 
         print(f"{len(resources)} resources found at: {ig_source}")

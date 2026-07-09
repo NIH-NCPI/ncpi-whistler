@@ -4,7 +4,6 @@ from yaml import safe_load
 from rich import print
 import sys
 from ncpi_fhir_client import fhir_auth
-import pdb
 from collections import OrderedDict
 from enum import Enum
 import re

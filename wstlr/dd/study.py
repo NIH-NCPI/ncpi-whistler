@@ -6,14 +6,12 @@ from wstlr.dd.table import DdTable
 from wstlr import system_base, dd_system_url
 
 
-import pdb
 
 class DdStudy:
     def __init__(self, name, description="", url_base=system_base):
         self.name = name
         self.description = description 
         self.url_base = url_base
-        #pdb.set_trace()
         self.url = dd_system_url(self.url_base, 
                                 "CodeSystem", 
                                 self.name, 
@@ -42,7 +40,6 @@ class DdStudy:
             filename = config.anvil_data_model
 
     def add_table(self, name, description=""):
-        #pdb.set_trace()
         self.tables[name] = DdTable(name, 
                                     self.name,
                                     description=description, 
