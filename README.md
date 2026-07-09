@@ -29,6 +29,15 @@ pip install -e ".[test]"
 pytest
 ```
 
+### Type checking
+
+Type hints are being added incrementally, module by module. Checked modules are enforced in CI via `mypy`; run it locally with:
+
+```bash
+pip install -e ".[dev]"
+mypy
+```
+
 ## How It Works
 
 **Extraction** — Whistle transforms JSON into JSON, so the input must be JSON first. NCPI Whistler provides a YAML configuration for each dataset, used to extract data from CSV into JSON objects suitable for Whistle. Extraction also supports embedding rows from one table into another based on a shared join column (e.g. attaching a subject's observations to their record) and basic GROUP BY-style aggregation of rows within a table.

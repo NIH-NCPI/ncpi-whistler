@@ -1,14 +1,17 @@
-import traceback
-from pathlib import Path
-from yaml import safe_load
-from rich import print
+from __future__ import annotations
+
+import re
 import sys
-from ncpi_fhir_client import fhir_auth
 from collections import OrderedDict
 from enum import Enum
-import re
+from pathlib import Path
+from typing import Any, TextIO
 
-system_base = "https://nih-ncpi.github.io/ncpi-fhir-ig"
+from ncpi_fhir_client import fhir_auth
+from rich import print
+from yaml import safe_load
+
+system_base: str = "https://nih-ncpi.github.io/ncpi-fhir-ig"
 
 
 class DDVariableType(Enum):
@@ -24,7 +27,7 @@ class DDVariableType(Enum):
 # each list Because categoricals actually do require values, the underlying
 # functionality should default to capturing strings if there are inadequate
 # enumerated values in the data dictionary provided
-_data_dictionary_type_map = OrderedDict()
+_data_dictionary_type_map: OrderedDict[DDVariableType, list[str]] = OrderedDict()
 _data_dictionary_type_map[DDVariableType.StringType] = [
     "string",
     "",
@@ -54,18 +57,18 @@ class TableType(Enum):
 
 
 class InvalidType(Exception):
-    def __init__(self, bad_type):
+    def __init__(self, bad_type: str) -> None:
         self.type_name = bad_type
         super().__init__(self.message())
 
-    def message(self):
+    def message(self) -> str:
         return (
             f"Unrecognized variable type, {self.type_name}. Please see "
             "about adding this type to the categories in Whistler.\n"
         )
 
 
-def StandardizeDdType(dd_type):
+def StandardizeDdType(dd_type: str) -> str:
     for dt in _data_dictionary_type_map.keys():
         the_types = _data_dictionary_type_map[dt]
         if dd_type.lower() in _data_dictionary_type_map[dt]:
@@ -74,7 +77,7 @@ def StandardizeDdType(dd_type):
     raise InvalidType(dd_type)
 
 
-def determine_table_type(table_def):
+def determine_table_type(table_def: dict[str, Any]) -> TableType:
     """Checks for specific keys to determine which TableType applies"""
     if "embed" in table_def:
         return TableType.Embedded
@@ -83,7 +86,7 @@ def determine_table_type(table_def):
     return TableType.Default
 
 
-def example_config(writer, auth_type=None):
+def example_config(writer: TextIO, auth_type: str | None = None) -> None:
     """Returns a block of text containing one or all possible auth modules example configurations"""
 
     modules = fhir_auth.get_modules()
@@ -115,7 +118,7 @@ def example_config(writer, auth_type=None):
             modules[key].example_config(writer, other_entries)
 
 
-def get_host_config():
+def get_host_config() -> dict[str, Any]:
     host_config_filename = Path("fhir_hosts")
 
     if not host_config_filename.is_file() or host_config_filename.stat().st_size == 0:
@@ -131,23 +134,23 @@ for each of the auth types currently supported.\n""",
     return safe_load(host_config_filename.open("rt"))
 
 
-def die_if(do_die, msg, errnum=1):
+def die_if(do_die: bool, msg: str, errnum: int = 1) -> None:
     if do_die:
         sys.stderr.write(msg + "\n")
         sys.exit(errnum)
 
 
-xcleaner = re.compile(r";\s+")
+xcleaner: re.Pattern[str] = re.compile(r";\s+")
 
 
-def clean_values(valuestring):
+def clean_values(valuestring: str | None) -> str:
     """I'm seeing some spaces in the value lists, but they aren't consistant, so we'll strip them out"""
     if valuestring is None:
         return ""
     return re.sub(xcleaner, ";", valuestring.strip())
 
 
-def fix_fieldname(fieldname):
+def fix_fieldname(fieldname: str) -> str:
     return (
         fieldname.lower()
         .strip()
@@ -158,7 +161,13 @@ def fix_fieldname(fieldname):
     )
 
 
-def dd_system_url(url_base, term_type, consent_group, table_name, varname):
+def dd_system_url(
+    url_base: str,
+    term_type: str,
+    consent_group: str | None,
+    table_name: str,
+    varname: str | None,
+) -> str:
     """Build a data-dictionary system URL, scoped under the consent group
     (if any) so tables/variables in different consent groups of the same
     study don't collide on the same URL."""
@@ -171,11 +180,10 @@ def dd_system_url(url_base, term_type, consent_group, table_name, varname):
     return path
 
 
-_boolean_values = set(["true", "yes", "1", 1, True])
+_boolean_values: set[str | int | bool] = {"true", "yes", "1", 1, True}
 
 
-def evaluate_bool(value=None):
-    global _boolean_values
+def evaluate_bool(value: Any = None) -> bool:
     val_type = type(value)
     if val_type is bool:
         return value

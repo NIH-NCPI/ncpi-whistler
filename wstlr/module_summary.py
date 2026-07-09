@@ -1,23 +1,29 @@
+from __future__ import annotations
+
 from collections import defaultdict
+from typing import Any
+
 from rich import print
 
 
 class ModuleSummary:
-    def __init__(self, resource_types=None):
+    def __init__(self, resource_types: list[str] | None = None) -> None:
         # Capture details specific to a subset of resource types (if specified)
         self.resource_types = resource_types
 
         # Module-name => ResourceType => count
-        self.module_summary = defaultdict(lambda: defaultdict(int))
-        self.resource_summary = defaultdict(int)
+        self.module_summary: defaultdict[str, defaultdict[str, int]] = defaultdict(
+            lambda: defaultdict(int)
+        )
+        self.resource_summary: defaultdict[str, int] = defaultdict(int)
 
-    def summary(self, group_name, resource):
+    def summary(self, group_name: str, resource: dict[str, Any]) -> None:
         resourceType = resource["resourceType"]
         if self.resource_types is None or resourceType in self.resource_types:
             self.module_summary[group_name][resourceType] += 1
             self.resource_summary[resourceType] += 1
 
-    def print_summary(self, study_id):
+    def print_summary(self, study_id: str) -> None:
         print(f"\nModule Summary [green]({study_id})[/green]")
         print(
             "Module Name                      Resource Type            #         % of Total"
