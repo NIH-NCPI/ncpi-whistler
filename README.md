@@ -3,7 +3,7 @@
 [![Tests](https://github.com/NIH-NCPI/ncpi-whistler/actions/workflows/tests.yml/badge.svg)](https://github.com/NIH-NCPI/ncpi-whistler/actions/workflows/tests.yml)
 [![GitHub release](https://img.shields.io/github/v/release/NIH-NCPI/ncpi-whistler)](https://github.com/NIH-NCPI/ncpi-whistler/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Python 3.7+](https://img.shields.io/badge/python-3.7%2B-blue)](docs/installation.md)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](docs/installation.md)
 [![Docs](https://img.shields.io/badge/docs-nih--ncpi.github.io-blue)](https://nih-ncpi.github.io/ncpi-whistler/)
 [![GitHub last commit](https://img.shields.io/github/last-commit/NIH-NCPI/ncpi-whistler)](https://github.com/NIH-NCPI/ncpi-whistler/commits/main)
 

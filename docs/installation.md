@@ -2,7 +2,7 @@
 NCPI Whistler is a python 3 application. As such, it should run on any modern system. 
 
 ## Prerequisites
-- Python 3.7 or later
+- Python 3.9 or later
 - [Whistle](/#/whistle)
 - Various Python libraries (which should be automatically installed when using pip)
   - PyYAML
