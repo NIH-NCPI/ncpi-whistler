@@ -79,12 +79,29 @@ class TestFixFieldname:
 
 class TestDdSystemUrl:
     def test_without_varname_omits_variable_segment(self):
-        url = dd_system_url("http://base", "term", "study", "My Table", None)
+        url = dd_system_url("http://base", "term", None, "My Table", None)
         assert url == "http://base/term/data-dictionary/my_table"
 
     def test_with_varname_appends_variable_segment(self):
-        url = dd_system_url("http://base", "term", "study", "My Table", "My Var")
+        url = dd_system_url("http://base", "term", None, "My Table", "My Var")
         assert url == "http://base/term/data-dictionary/my_table/my_var"
+
+    def test_consent_group_is_inserted_before_table_name(self):
+        url = dd_system_url("http://base", "term", "GRU", "My Table", None)
+        assert url == "http://base/term/data-dictionary/gru/my_table"
+
+    def test_consent_group_carries_through_to_variable_urls(self):
+        url = dd_system_url("http://base", "term", "GRU", "My Table", "My Var")
+        assert url == "http://base/term/data-dictionary/gru/my_table/my_var"
+
+    def test_blank_consent_group_is_treated_as_absent(self):
+        url = dd_system_url("http://base", "term", "   ", "My Table", None)
+        assert url == "http://base/term/data-dictionary/my_table"
+
+    def test_different_consent_groups_produce_different_urls(self):
+        gru_url = dd_system_url("http://base", "term", "GRU", "My Table", None)
+        hmb_url = dd_system_url("http://base", "term", "HMB", "My Table", None)
+        assert gru_url != hmb_url
 
 
 class TestEvaluateBool:
