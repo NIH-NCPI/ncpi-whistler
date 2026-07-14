@@ -11,6 +11,10 @@ NCPI Whistler is a complete pipeline that transforms research data tables into F
 
 Whistle is Google's Data Transformation Language for turning arbitrary JSON into FHIR-compliant JSON. It integrates with [FHIR ConceptMaps](http://hl7.org/fhir/R4/conceptmap.html), making it a great fit for harmonizing research datasets into a consistent FHIR representation. To use Whistle, though, the data must first be JSON and any code translations must be provided as ConceptMaps — that's the gap NCPI Whistler fills, along with delivering the resulting FHIR resources into the server of your choice.
 
+<p align="center">
+  <img src="docs/ncpi-whistler-pipeline.jpg" alt="NCPI Whistler Architecture Diagram" width="800">
+</p>
+
 ## Quick Start
 
 ```bash
