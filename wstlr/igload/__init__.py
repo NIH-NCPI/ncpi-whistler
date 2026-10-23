@@ -55,6 +55,7 @@ def delete_resource(fn, fhir_client, data, deleted_items):
 
 
 def load_resource(fn, fhir_client, data, force_overwrite):
+    print(f"data: {data.get("url")} or {data.get("id")}")
     if "url" in data:
         response = fhir_client.load(
             data["resourceType"], data, skip_insert_if_present=not force_overwrite
@@ -241,8 +242,9 @@ def exec():
                     response = load_resource(
                         fn, fhir_client, data, args.force_overwrite
                     )
-                    print(f"{fn} -- {response.keys()}")
-                    pdb.set_trace()
+
+                    print(f"{fn} -- {response}")
+                    # pdb.set_trace()
             else:
                 print(f"\nSkipping {fn}")
                 excluded_list.append(fn)
