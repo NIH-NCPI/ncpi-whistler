@@ -1,15 +1,20 @@
 """
- * Basic functionality around loading fhir hosts file and autogeneration if 
+ * Basic functionality around loading fhir hosts file and autogeneration if
  * the file doesn't exist
 """
+from __future__ import annotations
+
+import os
 import sys
 from pathlib import Path
-from yaml import safe_load
+from typing import Any, TextIO
+
 from ncpi_fhir_client import fhir_auth
+from yaml import safe_load
 
 _default_hosts_file = "fhir_hosts"
 
-def example_config(writer, auth_type=None):
+def example_config(writer: TextIO, auth_type: str | None = None) -> None:
     """Returns a block of text containing one or all possible auth modules example configurations"""
 
     modules = fhir_auth.get_modules()
@@ -40,7 +45,7 @@ def example_config(writer, auth_type=None):
 
             modules[key].example_config(writer, other_entries)
 
-def load_hosts_file(filename=None):
+def load_hosts_file(filename: str | os.PathLike[str] | None = None) -> dict[str, Any]:
     if filename is None:
         filename = _default_hosts_file
     host_config_filename = Path(filename)

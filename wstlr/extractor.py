@@ -9,7 +9,6 @@ from pathlib import Path
 import re
 from collections import defaultdict
 from copy import deepcopy
-import pdb
 from wstlr.conceptmap import ObjectifyHarmony
 from wstlr.embedable import EmbedableTable
 from wstlr import dd_system_url, StandardizeDdType, clean_values, fix_fieldname
@@ -18,7 +17,6 @@ from wstlr import system_base, InvalidType
 
 from wstlr.config import Configuration
 
-import pdb
 
 default_colnames = {
     "varname": "varname",
@@ -49,7 +47,6 @@ def store_data(colname, row, dest, namelist):
 
 class GroupBy:
     def __init__(self, config=None):
-        # pdb.set_trace()
         self.group_by = []
         self.content = {}
 
@@ -208,7 +205,6 @@ def BuildAggregators(cfg_agg):
 
 
 def DataCsvToObject(config):
-    # pdb.set_trace()
     dataset = {
         "config": {"missing": ["NA", "", "Not Provided"]},
         "study": {
@@ -248,9 +244,6 @@ def DataCsvToObject(config):
         dataset["study"]["publisher"] = "NCPI FHIR Working Group"
 
     consent_group = dataset["study"].get("consent_code")
-    study_component = dataset["study"]["id"]
-    if consent_group is not None:
-        study_component = f"{study_component}-{consent_group}"
 
     dataset["study"]["data-dictionary"][0] = config.study_dd.obj_as_dd()
     dataset["code-systems"].append(config.study_dd.obj_as_cs())
@@ -265,7 +258,6 @@ def DataCsvToObject(config):
 
     for category, table in config.dataset.items():
         embedable = table.get("embed")
-        # filenames = table['filename'].split(",")
 
         if embedable is not None:
             embd = EmbedableTable(category, embedable["dataset"], embedable["colname"])
@@ -288,7 +280,6 @@ def DataCsvToObject(config):
                     if "display" not in row:
                         print(row)
                     code_details[row["local code"]] = row["display"]
-        # pdb.set_trace()
         if "data_dictionary" in table:
             if table["data_dictionary"]["filename"].lower() != "none":
                 with open(
@@ -314,7 +305,7 @@ def DataCsvToObject(config):
                         ObjectifyHarmony(
                             harmony_file,
                             curies=config.curies,
-                            study_component=study_component,
+                            consent_group=consent_group,
                         )
                     )
 

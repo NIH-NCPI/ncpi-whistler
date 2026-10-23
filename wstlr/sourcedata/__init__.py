@@ -90,8 +90,6 @@ class DdTable_:
         self.parent_table = self.table_name
         if self.table_type == TableType.Embedded:
             self.parent_table = ddconfig["embed"]["dataset"]
-            # self.colnames = [fix_fieldname(x) for x in ddconfig['embed']['colname'].split(",")]
-            # self.colnames = identifier_columns(ddconfig['embed']['colname'], id_colname, 'row')
         elif self.table_type == TableType.Grouped:
             self.colnames = identifier_columns(
                 ddconfig["group_by"], id_colname, "row"

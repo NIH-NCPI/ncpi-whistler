@@ -35,7 +35,6 @@ from time import sleep
 
 import os
 
-import pdb
 
 
 # whistle -harmonize_code_dir_spec code_harmonization/
@@ -47,7 +46,6 @@ import pdb
 def run_whistle(
     whistlefile, inputfile, harmonydir, projectorlib, outputdir, whistle_path="whistle"
 ):
-    # pdb.set_trace()
     command = [
         whistle_path,
         "-harmonize_code_dir_spec",
@@ -62,11 +60,8 @@ def run_whistle(
         "-output_dir",
         outputdir,
     ]
-    # print(" ".join(command))
     for cmd in track([command], description="Running Whistle"):
         result = run(cmd, capture_output=True)
-
-    # result = run(command, capture_output=True)
 
     if result.returncode != 0:
         print(f"Std out    : {result.stdout.decode()}")
@@ -438,7 +433,6 @@ def exec():
                 exit_on_dupes=not args.permit_cache_dupes,
             )
 
-            # cache = IdCache(config['study_id'], fhir_client.target_service_url)
             loader = ResourceLoader(
                 cfg.identifier_prefix,
                 fhir_client,
@@ -485,7 +479,6 @@ def exec():
                 while len(loader.delayed_loading) > 0 and max_final_attempts > 0:
                     # Make sure we clear out the queue in case there are some
                     # things there that these reloads depend on
-                    # pdb.set_trace()
                     loader.launch_threads()
 
                     print(

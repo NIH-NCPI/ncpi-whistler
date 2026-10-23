@@ -17,16 +17,24 @@ we need a simple class to iterate over the table data and populate the expected
 attributes based on the lookup table provided to the table loader.
 """
 
-from wstlr import evaluate_bool, _data_dictionary_type_map, system_base, dd_system_url
-import re
-import sys
-import pdb
+from __future__ import annotations
 
-from wstlr import fix_fieldname
+import sys
+from typing import Any
+
+from wstlr import (
+    _data_dictionary_type_map,
+    dd_system_url,
+    evaluate_bool,
+    fix_fieldname,
+    system_base,
+)
 
 
 class DdVariable:
-    def __init__(self, study_name, table_name, url_base=system_base, **kwargs):
+    def __init__(
+        self, study_name: str, table_name: str, url_base: str = system_base, **kwargs: Any
+    ) -> None:
         self.url_base = url_base
 
         self.study_name = study_name
@@ -43,7 +51,7 @@ class DdVariable:
             self.study_component = f"{study_name}-{self.consent_group}"
 
         self.url = dd_system_url(
-            self.url_base, "CodeSystem", self.study_component, table_name, self.varname
+            self.url_base, "CodeSystem", self.consent_group, table_name, self.varname
         )
 
         # These are not currently used by Whistler, at least not in this way
@@ -52,7 +60,7 @@ class DdVariable:
         self.required = evaluate_bool(kwargs.get("required", False))
         self.notes = kwargs.get("notes", "")
 
-    def add_to_varname_lookup(self, lkup):
+    def add_to_varname_lookup(self, lkup: dict[str, str]) -> None:
         desc = self.desc
 
         if desc != self.varname:
@@ -64,14 +72,13 @@ class DdVariable:
                 lkup[vardesc] = code
 
     @property
-    def desc(self):
+    def desc(self) -> str:
         if self.description is not None and len(self.description.strip()) != 0:
             return self.description
         return self.varname
 
-    def parse_data_type(self, data_type):
+    def parse_data_type(self, data_type: str) -> str:
         for dt in _data_dictionary_type_map.keys():
-            # pdb.set_trace()
             if data_type.lower() in _data_dictionary_type_map[dt]:
                 return _data_dictionary_type_map[dt][0]
         # if it doesn't match, why not just report the problem and exit
@@ -82,13 +89,13 @@ class DdVariable:
         )
         sys.exit(1)
 
-    def parse_enums(self, values):
-        transformed_values = {}
+    def parse_enums(self, values: str | list[str] | None) -> dict[str, str]:
+        transformed_values: dict[str, str] = {}
 
         if values is None:
             return transformed_values
 
-        if type(values) is str:
+        if isinstance(values, str):
             splitter = ";"
 
             if splitter not in values:
@@ -108,7 +115,7 @@ class DdVariable:
 
         return transformed_values
 
-    def obj_as_dd_variable(self):
+    def obj_as_dd_variable(self) -> dict[str, Any]:
         """Build out dd entries for the variable's whistle input"""
         obj = {
             "varname": self.varname,
@@ -124,7 +131,7 @@ class DdVariable:
             }
         return obj
 
-    def obj_as_dd(self):
+    def obj_as_dd(self) -> dict[str, Any]:
         """Build out dd entries for the variable's whistle input"""
         obj = {
             "varname": self.varname,
@@ -140,7 +147,7 @@ class DdVariable:
             }
         return obj
 
-    def obj_as_cs(self):
+    def obj_as_cs(self) -> dict[str, Any]:
         """Prepare for dumping to the whistle input json file for"""
         """code-system"""
         obj = {
@@ -157,9 +164,9 @@ class DdVariable:
             obj["consent_group"] = self.consent_group
         return obj
 
-    def values_for_json(self):
+    def values_for_json(self) -> list[dict[str, str]]:
         """Build out the values suitable for adding to json object"""
-        values = []
+        values: list[dict[str, str]] = []
 
         for code in self.enumerations:
             desc = self.enumerations[code]

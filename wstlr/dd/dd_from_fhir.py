@@ -14,7 +14,6 @@ from collections import defaultdict
 from pathlib import Path
 import csv
 
-import pdb
 _codes_produced=defaultdict(int)
 def build_code(prefix, varwidth=6):
     global _codes_produced
@@ -50,7 +49,7 @@ class Variable:
                     self.min = val
                 elif self.max is None or val > self.max:
                     self.max = val
-            except:
+            except ValueError:
                 pass
             self.values[value] += 1       
 
@@ -75,7 +74,6 @@ class Variable:
         if len(self.values) < 50:
             for value,count in self.values.items():
                 if value.strip() != "":
-                    #pdb.set_trace()
                     if len(value) > 20:
                         codeval = build_code(self.code_prefix)
                         values.add(f"{codeval}={value}")
@@ -213,7 +211,6 @@ def exec(args=None):
 
                 Variable.header(writer)
                 for varname,var in current_dd[table_name].items():
-                    #pdb.set_trace()
                     var.write(writer)
     
 

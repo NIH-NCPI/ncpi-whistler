@@ -7,7 +7,6 @@ from wstlr.dd.loader import DdLoader
 
 from pathlib import Path
 import csv
-import pdb
 
 class CsvParser(DdLoader):
     def __init__(self, filename, 
