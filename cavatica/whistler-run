@@ -1,0 +1,394 @@
+#!/usr/bin/env bash
+#
+# whistler-run: run NCPI Whistler commands non-interactively in a batch or
+# CWL context (Cavatica / Seven Bridges, cwltool, Toil, ...).
+#
+#   whistler-run play    ...   transform (and optionally load) a project
+#   whistler-run delfhir ...   delete a study's resources (by meta.tag) from a FHIR server
+#
+# For backward compatibility, if the first argument is not a subcommand,
+# "play" is assumed.
+#
+# Why this exists:
+#   * Workflow inputs are staged read-only at arbitrary paths, but Whistler
+#     resolves everything relative to cwd and writes into the project tree.
+#     So all work happens in a private scratch directory.
+#   * play and delfhir both read ./fhir_hosts before parsing arguments.
+#   * Secrets (fhir_hosts, key files) stay in scratch and are deleted on exit;
+#     only declared results land in the output directory.
+#   * play and delfhir can exit 0 after failing, so results are verified.
+
+set -euo pipefail
+
+die() { echo "whistler-run: ERROR: $*" >&2; exit 1; }
+log() { echo "whistler-run: $*" >&2; }
+
+usage() {
+    cat <<'USAGE'
+Usage:
+  whistler-run [play] --project DIR|ARCHIVE --config FILE [options] [-- PLAY_ARGS...]
+  whistler-run delfhir --hosts FILE --env NAME --study ID [options] [-- DELFHIR_ARGS...]
+
+Common options:
+  --hosts FILE         fhir_hosts file (required for delfhir; for play only
+                       when loading with -e/--host).
+  --secret FILE        Extra file (e.g. service-account JSON) copied next to
+                       fhir_hosts by basename. May be repeated.
+  --results DIR        Where results are written (default: ./results).
+  -h, --help           Show this help.
+
+play options:
+  -p, --project PATH   Whistler project: a directory, or a .tar/.tar.gz/.tgz/.zip
+                       of one (a single top-level folder is unwrapped).
+  -c, --config FILE    Study YAML, relative to the project root (or an absolute
+                       path, copied into the project root). May be repeated.
+  --collect PATH       Extra project-relative path to copy into results.
+                       "output" and the harmony ConceptMaps are always copied.
+  --no-force           Don't pass --force to play.
+
+delfhir options:
+  -e, --env NAME       Host entry in fhir_hosts to delete from.
+  -n, --study ID       Study ID, i.e. the meta.tag value on the study's resources.
+                       By default every resource with this tag is deleted.
+  -s, --study-ids FILE Instead of deleting by tag, delete only the IDs listed in
+                       this study-ids.json (written by play when loading).
+  -r, --resource TYPE  Only delete (and count) this resource type. May be repeated.
+  --threaded           Delete in parallel.
+  --thread-count N     Number of threads (with --threaded).
+  --fail-if-remaining  Fail if any resource with the tag remains afterwards.
+  --dry-run            Count what is tagged and write delete-plan.txt, without
+                       deleting anything (uses read-only queries).
+
+Arguments after "--" are passed to the underlying command unchanged, one per word:
+  whistler-run play -p study_proj -c study.yaml --hosts fhir_hosts -- -e dev
+USAGE
+}
+
+# --------------------------------------------------------------------------
+# Shared helpers
+# --------------------------------------------------------------------------
+WORK=""
+cleanup() { [[ -n "$WORK" ]] && rm -rf "$WORK"; return 0; }
+trap cleanup EXIT
+
+make_workdir() {
+    WORK="$(mktemp -d "${TMPDIR:-/tmp}/whistler.XXXXXX")"
+}
+
+# install_credentials HOSTS_FILE_OR_EMPTY SECRET...
+install_credentials() {
+    local hosts="$1"; shift
+    if [[ -n "$hosts" ]]; then
+        [[ -f "$hosts" ]] || die "hosts file not found: $hosts"
+        install -m 600 "$hosts" "$WORK/fhir_hosts"
+    elif [[ ! -s "$WORK/fhir_hosts" ]]; then
+        # An empty mapping lets transform-only runs proceed.
+        printf '# placeholder written by whistler-run (no FHIR hosts configured)\n{}\n' \
+            > "$WORK/fhir_hosts"
+    fi
+    local s
+    for s in "$@"; do
+        [[ -f "$s" ]] || die "secret file not found: $s"
+        install -m 600 "$s" "$WORK/$(basename "$s")"
+    done
+}
+
+require_tools() {
+    local t
+    for t in "$@"; do
+        command -v "$t" >/dev/null || die "$t is not on PATH ($PATH)"
+    done
+}
+
+# --------------------------------------------------------------------------
+# play
+# --------------------------------------------------------------------------
+run_play() {
+    local PROJECT="" HOSTS="" RESULTS="${PWD}/results"
+    local CONFIGS=() SECRETS=() COLLECT=("output") FORCE=(--force) PLAY_ARGS=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -p|--project) PROJECT="${2:?}"; shift 2 ;;
+            -c|--config)  CONFIGS+=("${2:?}"); shift 2 ;;
+            --hosts)      HOSTS="${2:?}"; shift 2 ;;
+            --secret)     SECRETS+=("${2:?}"); shift 2 ;;
+            --results)    RESULTS="${2:?}"; shift 2 ;;
+            --collect)    COLLECT+=("${2:?}"); shift 2 ;;
+            --no-force)   FORCE=(); shift ;;
+            -h|--help)    usage; exit 0 ;;
+            --)           shift; PLAY_ARGS=("$@"); break ;;
+            *)            usage >&2; die "unknown play argument: $1" ;;
+        esac
+    done
+
+    [[ -n "$PROJECT" ]] || { usage >&2; die "--project is required"; }
+    [[ ${#CONFIGS[@]} -gt 0 ]] || { usage >&2; die "at least one --config is required"; }
+    [[ -e "$PROJECT" ]] || die "project not found: $PROJECT"
+    require_tools whistle play
+
+    mkdir -p "$RESULTS"
+    RESULTS="$(cd "$RESULTS" && pwd)"
+    make_workdir
+    local ROOT="$WORK"
+
+    log "staging project from $PROJECT"
+    if [[ -d "$PROJECT" ]]; then
+        cp -rL --no-preserve=mode,ownership "$PROJECT"/. "$ROOT"/
+    else
+        case "$PROJECT" in
+            *.tar.gz|*.tgz|*.tar) tar -xf "$PROJECT" -C "$ROOT" ;;
+            *.zip)                python -m zipfile -e "$PROJECT" "$ROOT" ;;
+            *) die "project must be a directory or .tar/.tar.gz/.tgz/.zip: $PROJECT" ;;
+        esac
+        shopt -s nullglob dotglob
+        local entries=("$ROOT"/*)
+        shopt -u nullglob dotglob
+        if [[ ${#entries[@]} -eq 1 && -d "${entries[0]}" ]]; then
+            ROOT="${entries[0]}"
+        fi
+    fi
+    chmod -R u+rwX "$WORK"
+
+    local CONFIG_ARGS=() cfg
+    for cfg in "${CONFIGS[@]}"; do
+        if [[ "$cfg" = /* ]]; then
+            [[ -f "$cfg" ]] || die "config not found: $cfg"
+            cp "$cfg" "$ROOT/$(basename "$cfg")"
+            cfg="$(basename "$cfg")"
+        fi
+        [[ -f "$ROOT/$cfg" ]] || die "config '$cfg' not found in project root"
+        CONFIG_ARGS+=("$cfg")
+    done
+
+    # Credentials go into the project root, where play looks for them.
+    local SAVED_WORK="$WORK"; WORK="$ROOT"
+    install_credentials "$HOSTS" "${SECRETS[@]+"${SECRETS[@]}"}"
+    WORK="$SAVED_WORK"
+
+    cd "$ROOT"
+    local MARKER="$WORK/.start-marker"; touch "$MARKER"
+
+    log "whistle: $(command -v whistle)"
+    log "running: play ${FORCE[*]+"${FORCE[*]}"} ${CONFIG_ARGS[*]} ${PLAY_ARGS[*]+"${PLAY_ARGS[*]}"}"
+    local rc=0
+    play "${FORCE[@]+"${FORCE[@]}"}" "${CONFIG_ARGS[@]}" "${PLAY_ARGS[@]+"${PLAY_ARGS[@]}"}" || rc=$?
+
+    # Collect results, also on failure, to aid debugging.
+    local path
+    for path in "${COLLECT[@]}"; do
+        if [[ -e "$path" ]]; then
+            mkdir -p "$RESULTS/$(dirname "$path")"
+            cp -r "$path" "$RESULTS/$path"
+        fi
+    done
+
+    local hdir
+    while IFS= read -r hdir; do
+        if [[ -d "$hdir" ]]; then
+            mkdir -p "$RESULTS/harmony"
+            find "$hdir" -maxdepth 1 -name '*.json' -exec cp {} "$RESULTS/harmony/" \;
+        fi
+    done < <(python - "${CONFIG_ARGS[@]}" <<'PY'
+import sys, yaml
+for cfg in sys.argv[1:]:
+    with open(cfg) as f:
+        data = yaml.safe_load(f) or {}
+    print(data.get("code_harmonization_dir", "harmony"))
+PY
+)
+
+    [[ $rc -eq 0 ]] || die "play exited with status $rc"
+
+    if [[ -z "$(find "$ROOT" -name '*.output.json' -newer "$MARKER" -print -quit)" ]]; then
+        die "play reported success but no new *.output.json was produced"
+    fi
+    log "done; results in $RESULTS"
+}
+
+# --------------------------------------------------------------------------
+# delfhir
+# --------------------------------------------------------------------------
+
+# count_tagged ENV STUDY OUT.tsv [TYPE...]
+# Writes "resource_type<TAB>count" for resources tagged with STUDY, using
+# read-only _summary=count queries. With no TYPEs, every resource type in the
+# server's CapabilityStatement is counted (what delfhir's tag mode deletes).
+count_tagged() {
+    python - "$@" <<'PY'
+import sys
+from wstlr.hostfile import load_hosts_file
+from ncpi_fhir_client.fhir_client import FhirClient
+from ncpi_fhir_client import default_resources
+
+env, study, out, *types = sys.argv[1:]
+client = FhirClient(load_hosts_file("fhir_hosts")[env])
+if not types or "ALL" in types:
+    types = default_resources(client)
+
+with open(out, "w") as f:
+    print("resource_type\tcount", file=f)
+    for rtype in sorted(types):
+        resp = client.get(f"{rtype}?_tag={study}&_summary=count",
+                          recurse=False, except_on_error=False)
+        body = resp.response if isinstance(resp.response, dict) else {}
+        if "total" in body:
+            n = body["total"]
+        else:
+            # Server doesn't support _summary=count: fall back to a full search
+            n = len(client.get(f"{rtype}?_tag={study}&_elements=id").entries)
+        print(f"{rtype}\t{n}", file=f)
+PY
+}
+
+tsv_total() { awk -F'\t' 'NR>1 {s+=$2} END {print s+0}' "$1"; }
+
+# Print the non-zero rows of a count TSV, plus a total
+tsv_report() {
+    awk -F'\t' 'NR>1 && $2>0 {printf "  %-24s%10d\n", $1, $2; s+=$2}
+                END {printf "  %-24s%10d\n", "TOTAL", s+0}' "$1"
+}
+
+run_delfhir() {
+    local HOSTS="" ENV="" STUDY="" STUDY_IDS="" RESULTS="${PWD}/results"
+    local THREADED=0 THREAD_COUNT="" FAIL_IF_REMAINING=0 DRY_RUN=0
+    local SECRETS=() RESOURCES=() EXTRA_ARGS=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --hosts)             HOSTS="${2:?}"; shift 2 ;;
+            --secret)            SECRETS+=("${2:?}"); shift 2 ;;
+            --results)           RESULTS="${2:?}"; shift 2 ;;
+            -e|--env)            ENV="${2:?}"; shift 2 ;;
+            -n|--study)          STUDY="${2:?}"; shift 2 ;;
+            -s|--study-ids)      STUDY_IDS="${2:?}"; shift 2 ;;
+            --by-tag)            shift ;;  # the default; accepted for compatibility
+            -r|--resource)       RESOURCES+=("${2:?}"); shift 2 ;;
+            --threaded)          THREADED=1; shift ;;
+            --thread-count)      THREAD_COUNT="${2:?}"; shift 2 ;;
+            --fail-if-remaining) FAIL_IF_REMAINING=1; shift ;;
+            --dry-run)           DRY_RUN=1; shift ;;
+            -h|--help)           usage; exit 0 ;;
+            --)                  shift; EXTRA_ARGS=("$@"); break ;;
+            *)                   usage >&2; die "unknown delfhir argument: $1" ;;
+        esac
+    done
+
+    [[ -n "$HOSTS" ]] || die "--hosts is required for delfhir"
+    [[ -n "$ENV" ]]   || die "--env is required for delfhir"
+    [[ -n "$STUDY" ]] || die "--study is required for delfhir"
+    [[ -z "$STUDY_IDS" || -f "$STUDY_IDS" ]] || die "study-ids file not found: $STUDY_IDS"
+    require_tools delfhir
+
+    mkdir -p "$RESULTS"
+    RESULTS="$(cd "$RESULTS" && pwd)"
+    make_workdir
+    install_credentials "$HOSTS" "${SECRETS[@]+"${SECRETS[@]}"}"
+    if [[ -n "$STUDY_IDS" ]]; then
+        cp "$STUDY_IDS" "$WORK/study-ids.json"
+        STUDY_IDS="$WORK/study-ids.json"
+    fi
+    cd "$WORK"
+
+    # ---- Validate inputs (delfhir crashes with a traceback on several) ----
+    python - "$ENV" "$STUDY" "${STUDY_IDS:-}" <<'PY'
+import json, sys
+from wstlr.hostfile import load_hosts_file
+env, study, ids_file = sys.argv[1:]
+hosts = load_hosts_file("fhir_hosts")
+if env not in hosts:
+    sys.exit(f"whistler-run: ERROR: env '{env}' not in fhir_hosts "
+             f"(available: {', '.join(sorted(hosts)) or 'none'})")
+if ids_file:
+    url = hosts[env].get("target_service_url")
+    data = json.load(open(ids_file))
+    if study not in data:
+        sys.exit(f"whistler-run: ERROR: study '{study}' not in study-ids file "
+                 f"(available: {', '.join(sorted(data)) or 'none'})")
+    if url not in data[study]:
+        sys.exit(f"whistler-run: ERROR: study-ids file has no IDs for '{study}' "
+                 f"on {url} (has: {', '.join(sorted(data[study])) or 'none'})")
+PY
+
+    # ---- Plan: what is on the server now ----------------------------------
+    local URL MODE
+    URL="$(python -c 'import sys; from wstlr.hostfile import load_hosts_file; print(load_hosts_file("fhir_hosts")[sys.argv[1]].get("target_service_url"))' "$ENV")"
+    if [[ -n "$STUDY_IDS" ]]; then MODE="IDs listed in study-ids.json"; else MODE="by tag (meta.tag = $STUDY)"; fi
+
+    log "counting resources tagged '$STUDY' on $ENV"
+    count_tagged "$ENV" "$STUDY" "$RESULTS/tagged-before.tsv" "${RESOURCES[@]+"${RESOURCES[@]}"}" \
+        || die "could not query $ENV ($URL); check fhir_hosts, credentials and network access"
+
+    {
+        echo "FHIR server : $ENV ($URL)"
+        echo "Study tag   : $STUDY"
+        echo "Mode        : $MODE"
+        echo "Resources   : ${RESOURCES[*]:-ALL}"
+        echo "Currently tagged with '$STUDY':"
+        tsv_report "$RESULTS/tagged-before.tsv"
+        if [[ -n "$STUDY_IDS" ]]; then
+            echo "Listed in study-ids.json:"
+            python - "$STUDY" "$URL" "$STUDY_IDS" "${RESOURCES[@]+"${RESOURCES[@]}"}" <<'PY'
+import json, sys
+study, url, ids_file, *resources = sys.argv[1:]
+counts = json.load(open(ids_file))[study][url]
+total = 0
+for rtype in sorted(counts):
+    if not resources or "ALL" in resources or rtype in resources:
+        print(f"  {rtype:<24}{len(counts[rtype]):>10}")
+        total += len(counts[rtype])
+print(f"  {'TOTAL':<24}{total:>10}")
+PY
+        fi
+    } > "$RESULTS/delete-plan.txt"
+    cat "$RESULTS/delete-plan.txt" >&2
+
+    local ARGS=(-e "$ENV" -n "$STUDY")
+    if [[ -n "$STUDY_IDS" ]]; then ARGS+=(-s "$STUDY_IDS"); else ARGS+=(--delete-files-by-tag); fi
+    [[ $THREADED -eq 1 ]] && ARGS+=(--threaded)
+    [[ -n "$THREAD_COUNT" ]] && ARGS+=(--thread-count "$THREAD_COUNT")
+    local r
+    for r in "${RESOURCES[@]+"${RESOURCES[@]}"}"; do ARGS+=(-r "$r"); done
+    ARGS+=("${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}")
+
+    if [[ $DRY_RUN -eq 1 ]]; then
+        log "dry run; nothing deleted. Would run: delfhir ${ARGS[*]}"
+        return 0
+    fi
+    if [[ -z "$STUDY_IDS" && "$(tsv_total "$RESULTS/tagged-before.tsv")" -eq 0 ]]; then
+        log "nothing tagged '$STUDY' on $ENV; nothing to delete"
+        cp "$RESULTS/tagged-before.tsv" "$RESULTS/remaining-counts.tsv"
+        return 0
+    fi
+
+    # ---- Delete ------------------------------------------------------------
+    log "running: delfhir ${ARGS[*]}"
+    local rc=0
+    delfhir "${ARGS[@]}" || rc=$?
+    [[ $rc -eq 0 ]] || die "delfhir exited with status $rc"
+
+    # ---- Verify: count again (delfhir exits 0 even if deletes are refused) --
+    count_tagged "$ENV" "$STUDY" "$RESULTS/remaining-counts.tsv" "${RESOURCES[@]+"${RESOURCES[@]}"}" \
+        || die "delete ran, but re-counting on $ENV failed; check the server manually"
+
+    local before after
+    before="$(tsv_total "$RESULTS/tagged-before.tsv")"
+    after="$(tsv_total "$RESULTS/remaining-counts.tsv")"
+    log "tagged '$STUDY' before: $before, after: $after"
+    if [[ "$after" -gt 0 ]]; then
+        tsv_report "$RESULTS/remaining-counts.tsv" >&2
+        if [[ $FAIL_IF_REMAINING -eq 1 ]]; then
+            die "$after resources tagged '$STUDY' remain (see remaining-counts.tsv)"
+        fi
+        log "WARNING: $after resources tagged '$STUDY' remain (see remaining-counts.tsv)"
+    fi
+    log "done; results in $RESULTS"
+}
+
+# --------------------------------------------------------------------------
+case "${1:-}" in
+    play)        shift; run_play "$@" ;;
+    delfhir)     shift; run_delfhir "$@" ;;
+    -h|--help|"") usage; [[ -n "${1:-}" ]] ;;
+    *)           run_play "$@" ;;
+esac
