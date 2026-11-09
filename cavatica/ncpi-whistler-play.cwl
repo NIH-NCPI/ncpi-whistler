@@ -11,7 +11,7 @@ requirements:
   DockerRequirement:
     # Replace with the image you pushed, e.g.
     # cavatica-images.sbgenomics.com/<user-or-division>/ncpi-whistler:<tag>
-    dockerPull: cavatica-images.sbgenomics.com/YOUR_USER/ncpi-whistler:0.1.0
+    dockerPull: cavatica-images.sbgenomics.com/torstees/ncpi-whistler:0.1.0
   ResourceRequirement:
     coresMin: 2
     ramMin: 8000
